@@ -3,6 +3,7 @@
 use crate::RawFd;
 
 pub const SYS_fstatat: usize = 291;
+pub const SYS_statx: usize = 383;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
