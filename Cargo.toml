@@ -1,0 +1,43 @@
+[workspace]
+members = ["errno-gen"]
+
+[package]
+name = "linux-stat"
+version = "0.0.1"
+edition = "2021"
+
+[profile.dev.package.backtrace]
+opt-level = 3
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["std"]
+std = []
+
+# architectures
+
+x86 = []
+x86_64 = []
+arm = []
+aarch64 = []
+mips = []
+mips64 = []
+powerpc = []
+powerpc64 = []
+riscv32 = []
+riscv64 = []
+m68k = []
+s390x = []
+
+[build-dependencies]
+cc = "1.0.79"
+tempfile = "3.5.0"
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libc = { version = "0.2.144", default-features = false }
+
+[dependencies]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+bitflags = "2.3.1"
