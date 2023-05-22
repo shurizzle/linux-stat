@@ -1,8 +1,8 @@
 #![allow(non_camel_case_types)]
 
-use core::{ffi::CStr, mem::MaybeUninit};
+use core::{ffi::CStr, fmt, mem::MaybeUninit};
 
-use crate::{Errno, RawFd};
+use crate::{Errno, Mode, RawFd, Timestamp};
 
 pub use crate::arch::stat;
 
@@ -41,7 +41,7 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct StatXAttr: u32 {
+    pub struct StatXAttr: u64 {
         const COMPRESSED = 0x0004;
         const IMMUTABLE = 0x0010;
         const APPEND = 0x0020;
@@ -55,15 +55,24 @@ bitflags::bitflags! {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct timestamp {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __pad0: u32,
+#[derive(Copy, Clone)]
+struct timestamp {
+    tv_sec: i64,
+    tv_nsec: u32,
+    __pad: u32,
+}
+
+impl fmt::Debug for timestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("timestamp")
+            .field("tv_sec", &self.tv_sec)
+            .field("tv_nsec", &self.tv_nsec)
+            .finish()
+    }
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Statx {
     stx_mask: StatXMask,
     stx_blksize: u32,
@@ -71,8 +80,7 @@ pub struct Statx {
     stx_nlink: u32,
     stx_uid: u32,
     stx_gid: u32,
-    stx_mode: u16,
-    __pad0: u16,
+    stx_mode: Mode,
     stx_ino: u64,
     stx_size: u64,
     stx_blocks: u64,
@@ -91,110 +99,166 @@ pub struct Statx {
     spare: [u64; 14],
 }
 
+#[inline(always)]
+const fn makedev(minor: u32, major: u32) -> u64 {
+    (((minor as u64) & 0xfffff000) << 32)
+        | ((minor as u64) & 0x00000fff) << 8
+        | (((major as u64) & 0xffffff00) << 12)
+        | (major as u64) & 0xff
+}
+
 impl Statx {
     #[inline]
-    pub fn blksize(&self) -> u32 {
+    pub const fn block_size(&self) -> u32 {
         self.stx_blksize
     }
 
     #[inline]
-    pub fn attributes(&self) -> u64 {
+    pub const fn attributes(&self) -> u64 {
         self.stx_attributes
     }
 
     #[inline]
-    pub fn nlink(&self) -> u32 {
+    pub const fn nlink(&self) -> u32 {
         self.stx_nlink
     }
 
     #[inline]
-    pub fn uid(&self) -> u32 {
+    pub const fn uid(&self) -> u32 {
         self.stx_uid
     }
 
     #[inline]
-    pub fn gid(&self) -> u32 {
+    pub const fn gid(&self) -> u32 {
         self.stx_gid
     }
 
     #[inline]
-    pub fn mode(&self) -> u16 {
+    pub const fn mode(&self) -> Mode {
         self.stx_mode
     }
 
     #[inline]
-    pub fn ino(&self) -> u64 {
+    pub const fn ino(&self) -> u64 {
         self.stx_ino
     }
 
     #[inline]
-    pub fn size(&self) -> u64 {
+    pub const fn size(&self) -> u64 {
         self.stx_size
     }
 
     #[inline]
-    pub fn blocks(&self) -> u64 {
+    pub const fn blocks(&self) -> u64 {
         self.stx_blocks
     }
 
     #[inline]
-    pub fn attributes_mask(&self) -> StatXAttr {
+    pub const fn attributes_mask(&self) -> StatXAttr {
         self.stx_attributes_mask
     }
 
     #[inline]
-    pub fn atime(&self) -> timestamp {
-        self.stx_atime
+    pub const fn atime(&self) -> Timestamp {
+        Timestamp {
+            secs: self.stx_atime.tv_sec,
+            nsecs: self.stx_atime.tv_nsec,
+        }
     }
 
     #[inline]
-    pub fn btime(&self) -> timestamp {
-        self.stx_btime
+    pub const fn btime(&self) -> Timestamp {
+        Timestamp {
+            secs: self.stx_btime.tv_sec,
+            nsecs: self.stx_btime.tv_nsec,
+        }
     }
 
     #[inline]
-    pub fn ctime(&self) -> timestamp {
-        self.stx_ctime
+    pub const fn ctime(&self) -> Timestamp {
+        Timestamp {
+            secs: self.stx_ctime.tv_sec,
+            nsecs: self.stx_ctime.tv_nsec,
+        }
     }
 
     #[inline]
-    pub fn mtime(&self) -> timestamp {
-        self.stx_mtime
+    pub const fn mtime(&self) -> Timestamp {
+        Timestamp {
+            secs: self.stx_mtime.tv_sec,
+            nsecs: self.stx_mtime.tv_nsec,
+        }
     }
 
     #[inline]
-    pub fn rdev_major(&self) -> u32 {
+    pub const fn rdev_major(&self) -> u32 {
         self.stx_rdev_major
     }
 
     #[inline]
-    pub fn rdev_minor(&self) -> u32 {
+    pub const fn rdev_minor(&self) -> u32 {
         self.stx_rdev_minor
     }
 
     #[inline]
-    pub fn dev_major(&self) -> u32 {
+    pub const fn rdev(&self) -> u64 {
+        makedev(self.rdev_major(), self.rdev_minor())
+    }
+
+    #[inline]
+    pub const fn dev_major(&self) -> u32 {
         self.stx_dev_major
     }
 
     #[inline]
-    pub fn dev_minor(&self) -> u32 {
+    pub const fn dev_minor(&self) -> u32 {
         self.stx_dev_minor
     }
 
     #[inline]
-    pub fn mnt_id(&self) -> u64 {
+    pub const fn dev(&self) -> u64 {
+        makedev(self.dev_major(), self.dev_minor())
+    }
+
+    #[inline]
+    pub const fn mount_id(&self) -> u64 {
         self.stx_mnt_id
     }
 
     #[inline]
-    pub fn dio_mem_align(&self) -> u32 {
+    pub const fn dio_mem_align(&self) -> u32 {
         self.stx_dio_mem_align
     }
 
     #[inline]
-    pub fn dio_offset_align(&self) -> u32 {
+    pub const fn dio_offset_align(&self) -> u32 {
         self.stx_dio_offset_align
+    }
+}
+
+impl fmt::Debug for Statx {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("stat")
+            .field("dev", &self.dev())
+            .field("ino", &self.ino())
+            .field("nlink", &self.nlink())
+            .field("mode", &self.mode())
+            .field("uid", &self.uid())
+            .field("gid", &self.gid())
+            .field("rdev", &self.rdev())
+            .field("size", &self.size())
+            .field("block_size", &self.block_size())
+            .field("blocks", &self.blocks())
+            .field("atime", &self.atime())
+            .field("btime", &self.btime())
+            .field("mtime", &self.mtime())
+            .field("ctime", &self.ctime())
+            .field("attributes", &self.attributes())
+            .field("attributes_mask", &self.attributes_mask())
+            .field("mount_id", &self.mount_id())
+            .field("dio_mem_align", &self.dio_mem_align())
+            .field("dio_offset_align", &self.dio_offset_align())
+            .finish()
     }
 }
 
@@ -203,7 +267,6 @@ impl Statx {
         let mut buf = MaybeUninit::<Self>::uninit();
         unsafe {
             let buf = &mut *buf.as_mut_ptr();
-            buf.__pad0 = 0;
             buf.spare.as_mut_slice().fill(0);
         }
         buf
@@ -244,6 +307,29 @@ pub fn statx(
     }
 }
 
+#[cfg(not(feature = "std"))]
+macro_rules! dbg {
+    ($e:expr) => {
+        unsafe {
+            struct DelegateDebug<'a, T: core::fmt::Debug>(&'a T);
+            impl<'a, T: core::fmt::Debug> core::fmt::Display for DelegateDebug<'a, T> {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    core::fmt::Debug::fmt(self.0, f)
+                }
+            }
+
+            let s = stringify!($e);
+            libc::printf(b"%.*s = \0".as_ptr().cast(), s.len(), s.as_ptr());
+            #[allow(unused_unsafe)]
+            let v = $e;
+            let mut data = alloc::string::ToString::to_string(&DelegateDebug(&v)).into_bytes();
+            data.push(b'0');
+            libc::puts(data.as_ptr().cast());
+            v
+        }
+    };
+}
+
 #[test]
 #[ignore]
 fn print_types() {
@@ -255,7 +341,7 @@ fn print_types() {
                     concat!("sizeof(", stringify!($t), ") = %lu\n\0")
                         .as_ptr()
                         .cast(),
-                    $t::BITS,
+                    <$t>::BITS,
                 );
             }
         };
@@ -288,7 +374,7 @@ fn statx_dev_null() {
         AT_FDCWD,
         unsafe { CStr::from_ptr(b"/dev/null\0".as_ptr().cast()) },
         StatAtFlags::empty(),
-        StatXMask::BASIC_STATS
+        StatXMask::BASIC_STATS,
     ));
 }
 
@@ -296,28 +382,6 @@ fn statx_dev_null() {
 #[ignore]
 #[allow(clippy::unnecessary_cast)]
 fn stat_dev_null() {
-    #[cfg(not(feature = "std"))]
-    macro_rules! dbg {
-        ($e:expr) => {
-            unsafe {
-                struct DelegateDebug<'a, T: core::fmt::Debug>(&'a T);
-                impl<'a, T: core::fmt::Debug> core::fmt::Display for DelegateDebug<'a, T> {
-                    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                        core::fmt::Debug::fmt(self.0, f)
-                    }
-                }
-
-                let s = stringify!($e);
-                libc::printf(b"%.*s = \0".as_ptr().cast(), s.len(), s.as_ptr());
-                let v = $e;
-                let mut data = alloc::string::ToString::to_string(&DelegateDebug(&v)).into_bytes();
-                data.push(b'0');
-                libc::puts(data.as_ptr().cast());
-                v
-            }
-        };
-    }
-
     let s = unsafe {
         let mut buf = core::mem::MaybeUninit::<libc::stat64>::uninit();
         assert_ne!(

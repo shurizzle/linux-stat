@@ -7,6 +7,8 @@ pub mod arch;
 pub mod real;
 mod sys;
 
+use core::fmt;
+
 use bitflags::bitflags;
 
 bitflags! {
@@ -20,37 +22,42 @@ bitflags! {
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Mode(u16);
+pub struct Mode(pub(crate) u16);
 
 impl Mode {
     #[inline]
-    pub fn owner(&self) -> ModePermission {
+    pub const fn owner(&self) -> ModePermission {
         ModePermission::from_bits_retain(((self.0 >> 6) & 0o7) as u8)
     }
 
     #[inline]
-    pub fn group(&self) -> ModePermission {
+    pub const fn group(&self) -> ModePermission {
         ModePermission::from_bits_retain(((self.0 >> 3) & 0o7) as u8)
     }
 
     #[inline]
-    pub fn other(&self) -> ModePermission {
+    pub const fn other(&self) -> ModePermission {
         ModePermission::from_bits_retain((self.0 & 0o7) as u8)
     }
 
     #[inline]
-    pub fn suid(&self) -> bool {
+    pub const fn suid(&self) -> bool {
         self.0 & 0o4000 == 0o4000
     }
 
     #[inline]
-    pub fn sgid(&self) -> bool {
+    pub const fn sgid(&self) -> bool {
         self.0 & 0o2000 == 0o2000
     }
 
     #[inline]
-    pub fn svtx(&self) -> bool {
+    pub const fn svtx(&self) -> bool {
         self.0 & 0o1000 == 0o1000
+    }
+
+    #[inline]
+    pub const fn from_u16(value: u16) -> Self {
+        Self(value)
     }
 }
 
@@ -58,5 +65,70 @@ impl From<u16> for Mode {
     #[inline]
     fn from(value: u16) -> Self {
         Self(value)
+    }
+}
+
+impl fmt::Debug for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn format_c(f: &mut fmt::Formatter<'_>, b: bool, c: char) -> fmt::Result {
+            if b {
+                fmt::Display::fmt(&c, f)
+            } else {
+                fmt::Display::fmt(&'-', f)
+            }
+        }
+
+        fn format_perm(
+            f: &mut fmt::Formatter<'_>,
+            p: ModePermission,
+            x: Option<char>,
+        ) -> fmt::Result {
+            format_c(f, p.contains(ModePermission::READ), 'r')?;
+            format_c(f, p.contains(ModePermission::WRITE), 'w')?;
+            if let Some(x) = x {
+                fmt::Display::fmt(&x, f)
+            } else {
+                format_c(f, p.contains(ModePermission::EXEC), 'x')
+            }
+        }
+
+        write!(f, "Mode(")?;
+        format_perm(f, self.owner(), if self.suid() { Some('s') } else { None })?;
+        format_perm(f, self.group(), if self.sgid() { Some('s') } else { None })?;
+        format_perm(f, self.other(), None)?;
+        write!(f, ")")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Timestamp {
+    secs: i64,
+    nsecs: u32,
+}
+
+impl Timestamp {
+    #[inline]
+    pub const fn secs(&self) -> i64 {
+        self.secs
+    }
+
+    #[inline]
+    pub const fn seconds(&self) -> i64 {
+        self.secs
+    }
+
+    #[inline]
+    pub const fn nsecs(&self) -> u32 {
+        self.nsecs
+    }
+
+    #[inline]
+    pub const fn nanosecs(&self) -> u32 {
+        self.nsecs
+    }
+
+    #[inline]
+    pub const fn nanoseconds(&self) -> u32 {
+        self.nsecs
     }
 }

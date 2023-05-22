@@ -81,3 +81,35 @@ extern "C" {
         arg6: usize,
     ) -> usize;
 }
+
+#[inline(always)]
+const fn minor(dev: u64) -> u32 {
+    (((dev >> 32) & 0xfffff000) | ((dev >> 8) & 0xfff)) as u32
+}
+
+#[inline(always)]
+const fn major(dev: u64) -> u32 {
+    (((dev >> 12) & 0xffffff00) | (dev & 0xff)) as u32
+}
+
+impl stat {
+    #[inline]
+    pub const fn dev_minor(&self) -> u32 {
+        minor(self.dev())
+    }
+
+    #[inline]
+    pub const fn dev_major(&self) -> u32 {
+        major(self.dev())
+    }
+
+    #[inline]
+    pub const fn rdev_minor(&self) -> u32 {
+        minor(self.rdev())
+    }
+
+    #[inline]
+    pub const fn rdev_major(&self) -> u32 {
+        major(self.rdev())
+    }
+}
