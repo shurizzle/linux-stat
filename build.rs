@@ -11,14 +11,6 @@ fn main() {
 
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
-    if use_arm_thumb() {
-        use_feature("thumb");
-    }
-
-    if use_arm_thumb2() {
-        use_feature("thumb2");
-    }
-
     let test_asm = "extern crate core;\npub unsafe fn f() { ::core::arch::asm!(\"nop\"); }";
 
     if can_compile(test_asm) {
@@ -95,40 +87,6 @@ where
         .wait()
         .unwrap()
         .success()
-}
-
-fn cc_test_defined<T: AsRef<str>>(def: T) -> bool {
-    struct H<'a>(&'a str);
-    impl<'a> fmt::Display for H<'a> {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "#ifdef ")?;
-            write!(f, "{}", self.0)?;
-            write!(
-                f,
-                "
-int main(void) {{ return 0; }}
-#else
-#error UNDEFINED
-#endif"
-            )
-        }
-    }
-
-    try_compile(H(def.as_ref()), |_| ())
-}
-
-fn use_arm_thumb() -> bool {
-    if std::env::var("CARGO_CFG_TARGET_ARCH").unwrap() != "arm" {
-        return false;
-    }
-    cc_test_defined("__thumb__")
-}
-
-fn use_arm_thumb2() -> bool {
-    if std::env::var("CARGO_CFG_TARGET_ARCH").unwrap() != "arm" {
-        return false;
-    }
-    cc_test_defined("__thumb2__")
 }
 
 fn can_compile<T: AsRef<str>>(test: T) -> bool {

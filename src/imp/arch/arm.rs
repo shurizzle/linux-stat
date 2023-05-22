@@ -40,9 +40,13 @@ impl stat {
     }
 }
 
-#[cfg(all(not(outline_asm), target_arch = "arm", not(thumb)))]
+#[cfg(all(
+    not(outline_asm),
+    target_arch = "arm",
+    not(target_feature = "thumb-mode")
+))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flags: u32) -> usize {
     use core::arch::asm;
 
     let mut ret: usize;
@@ -58,9 +62,38 @@ pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flag
     ret
 }
 
-#[cfg(all(not(outline_asm), target_arch = "arm", thumb))]
+#[cfg(all(
+    not(outline_asm),
+    target_arch = "arm",
+    not(target_feature = "thumb-mode")
+))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn statx(
+    dirfd: RawFd,
+    path: *const u8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    use core::arch::asm;
+
+    let mut ret: usize;
+    asm!(
+        "svc 0",
+        in("r7") SYS_statx,
+        inlateout("r0") dirfd as usize => ret,
+        in("r1") path as usize,
+        in("r2") flags as usize,
+        in("r3") mask as usize,
+        in("r4") buf as usize,
+        options(nostack, preserves_flags)
+    );
+    ret
+}
+
+#[cfg(all(not(outline_asm), target_arch = "arm", target_feature = "thumb-mode"))]
+#[inline(always)]
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flags: u32) -> usize {
     use core::arch::asm;
 
     let ret: usize;
@@ -80,14 +113,62 @@ pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flag
     ret
 }
 
+#[cfg(all(not(outline_asm), target_arch = "arm", target_feature = "thumb-mode"))]
+#[inline(always)]
+pub(crate) unsafe fn statx(
+    dirfd: RawFd,
+    path: *const u8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    use core::arch::asm;
+
+    let ret: usize;
+    asm!(
+        "mov {tmp}, r7",
+        "mov r7, {nr}",
+        "svc 0",
+        "mov r7, {tmp}",
+        nr = in(reg) SYS_statx,
+        tmp = out(reg) _,
+        inlateout("r0") dirfd as usize => ret,
+        in("r1") path as usize,
+        in("r2") flags as usize,
+        in("r3") mask as usize,
+        in("r4") buf as usize,
+        options(nostack, preserves_flags)
+    );
+    ret
+}
+
 #[cfg(all(outline_asm, target_arch = "arm"))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const u8, buf: *mut stat, flags: u32) -> usize {
     super::__syscall4(
         SYS_fstatat,
         dirfd as usize,
         path as usize,
         buf as usize,
         flags as usize,
+    )
+}
+
+#[cfg(all(outline_asm, target_arch = "arm"))]
+#[inline(always)]
+pub(crate) unsafe fn statx(
+    dirfd: RawFd,
+    path: *const u8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    super::__syscall5(
+        SYS_statx,
+        dirfd as usize,
+        path as usize,
+        flags as usize,
+        mask as usize,
+        buf as usize,
     )
 }

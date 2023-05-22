@@ -44,7 +44,7 @@ impl stat {
 
 #[cfg(all(not(outline_asm), target_arch = "mips"))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: u32) -> usize {
     use core::arch::asm;
 
     let mut err: usize;
@@ -75,14 +75,80 @@ pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flag
     }
 }
 
+#[cfg(all(not(outline_asm), target_arch = "mips"))]
+#[inline(always)]
+pub(crate) unsafe fn statx(
+    dirfd: RawFd,
+    path: *const i8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    use core::arch::asm;
+
+    let mut err: usize;
+    let mut ret: usize;
+    asm!(
+        ".set noat",
+        "subu $sp, 32", // Make space on the stack.
+        "sw {arg5}, 16($sp)", // Store word arg5 in the stack.
+        "syscall",
+        "addu $sp, 32", // Restore the stack.
+        ".set at",
+        arg5 = in(reg) buf as usize,
+        inlateout("$2") SYS_statx => ret,
+        in("$4") dirfd as usize,
+        in("$5") path as usize,,
+        in("$6") flags as usize,
+        // $7 is now used for both input and output.
+        inlateout("$7") mask as usize => err,
+        // All temporary registers are always clobbered
+        lateout("$8") _,
+        lateout("$9") _,
+        lateout("$10") _,
+        lateout("$11") _,
+        lateout("$12") _,
+        lateout("$13") _,
+        lateout("$14") _,
+        lateout("$15") _,
+        lateout("$24") _,
+        lateout("$25") _,
+        options(preserves_flags)
+    );
+    if err == 0 {
+        ret
+    } else {
+        ret.wrapping_neg()
+    }
+}
+
 #[cfg(all(outline_asm, target_arch = "mips"))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: u32) -> usize {
     super::__syscall4(
         SYS_fstatat,
         dirfd as usize,
         path as usize,
         buf as usize,
         flags as usize,
+    )
+}
+
+#[cfg(all(outline_asm, target_arch = "mips"))]
+#[inline(always)]
+pub(crate) unsafe fn fstatat(
+    dirfd: RawFd,
+    path: *const i8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    super::__syscall5(
+        SYS_statx,
+        dirfd as usize,
+        path as usize,
+        flags as usize,
+        mask as usize,
+        buf as usize,
     )
 }

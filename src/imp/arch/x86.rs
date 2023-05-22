@@ -42,7 +42,7 @@ impl stat {
 
 #[cfg(all(not(outline_asm), target_arch = "x86"))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: u32) -> usize {
     use core::arch::asm;
 
     let mut ret: usize;
@@ -61,14 +61,60 @@ pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flag
     ret
 }
 
+#[cfg(all(not(outline_asm), target_arch = "x86"))]
+#[inline(always)]
+pub(crate) unsafe fn statx(
+    dirfd: RawFd,
+    path: *const i8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    use core::arch::asm;
+
+    let mut ret: usize;
+    asm!(
+        "xchg esi, {arg4}",
+        "int 0x80",
+        "xchg esi, {arg4}",
+        arg4 = in(reg) mask as usize,
+        inlateout("eax") SYS_statx => ret,
+        in("ebx") dirfd as usize,
+        in("ecx") path as usize,
+        in("edx") flags as usize,
+        in("edi") buf as usize,
+        options(nostack, preserves_flags)
+    );
+    ret
+}
+
 #[cfg(all(outline_asm, target_arch = "x86"))]
 #[inline(always)]
-pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: i32) -> usize {
+pub(crate) unsafe fn fstatat(dirfd: RawFd, path: *const i8, buf: *mut stat, flags: u32) -> usize {
     super::__syscall4(
         SYS_fstatat,
         dirfd as usize,
         path as usize,
         buf as usize,
         flags as usize,
+    )
+}
+
+#[cfg(all(outline_asm, target_arch = "x86"))]
+#[inline(always)]
+pub(crate) unsafe fn statx(
+    dirfd: RawFd,
+    path: *const i8,
+    flags: u32,
+    mask: u32,
+    buf: *mut u8,
+) -> usize {
+    super::__syscall5(
+        SYS_statx,
+        dirfd as usize,
+        path as usize,
+        flags as usize,
+        mask as usize,
+        buf as usize,
     )
 }
