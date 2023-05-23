@@ -1,6 +1,3 @@
-[workspace]
-members = ["errno-gen"]
-
 [package]
 name = "linux-stat"
 version = "0.0.1"
@@ -41,3 +38,4 @@ libc = { version = "0.2.144", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bitflags = "2.3.1"
+linux-errno = { git = "https://github.com/shurizzle/linux-errno.git" }

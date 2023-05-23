@@ -9,9 +9,6 @@ mod imp;
 #[cfg(any(target_os = "linux"))]
 pub use imp::*;
 
-mod errno;
-pub use errno::*;
-
 // v x86_64
 // v x86
 // v aarch64

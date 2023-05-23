@@ -11,6 +11,8 @@ use core::fmt;
 
 use bitflags::bitflags;
 
+pub use linux_errno::Errno;
+
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct ModePermission : u8 {
