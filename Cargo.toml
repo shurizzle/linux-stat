@@ -8,6 +8,7 @@ edition = "2018"
 [features]
 default = ["std"]
 std = ["linux-syscalls/std"]
+linux_4_11 = []
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 libc = { version = "0.2.144", default-features = false }

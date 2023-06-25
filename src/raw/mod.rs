@@ -4,26 +4,50 @@ use core::{fmt, mem::MaybeUninit};
 
 use crate::{Mode, RawFd, Timestamp};
 
-#[cfg_attr(target_arch = "aarch64", path = "aarch64.rs")]
-#[cfg_attr(target_arch = "arm", path = "arm.rs")]
-#[cfg_attr(target_arch = "mips", path = "mips.rs")]
-#[cfg_attr(target_arch = "mips64", path = "mips64.rs")]
-#[cfg_attr(target_arch = "powerpc", path = "powerpc.rs")]
-#[cfg_attr(target_arch = "powerpc64", path = "powerpc64.rs")]
-#[cfg_attr(target_arch = "riscv64", path = "riscv64.rs")]
-#[cfg_attr(target_arch = "s390x", path = "s390x.rs")]
-#[cfg_attr(target_arch = "x86", path = "x86.rs")]
-#[cfg_attr(target_arch = "x86_64", path = "x86_64.rs")]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "aarch64"),
+    path = "aarch64.rs"
+)]
+#[cfg_attr(all(not(feature = "linux_4_11"), target_arch = "arm"), path = "arm.rs")]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "mips"),
+    path = "mips.rs"
+)]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "mips64"),
+    path = "mips64.rs"
+)]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "powerpc"),
+    path = "powerpc.rs"
+)]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "powerpc64"),
+    path = "powerpc64.rs"
+)]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "riscv64"),
+    path = "riscv64.rs"
+)]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "s390x"),
+    path = "s390x.rs"
+)]
+#[cfg_attr(all(not(feature = "linux_4_11"), target_arch = "x86"), path = "x86.rs")]
+#[cfg_attr(
+    all(not(feature = "linux_4_11"), target_arch = "x86_64"),
+    path = "x86_64.rs"
+)]
 mod stat_imp;
 
-#[cfg(not(target_arch = "loongarch64"))]
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 pub use stat_imp::stat;
 
 use linux_syscalls::{bitflags, syscall, Errno, Sysno};
 
 pub const AT_FDCWD: RawFd = -100;
 
-#[cfg(not(target_arch = "loongarch64"))]
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 impl fmt::Debug for stat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("stat")
@@ -313,19 +337,19 @@ impl Statx {
     }
 }
 
-#[cfg(not(target_arch = "loongarch64"))]
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 #[inline(always)]
 const fn minor(dev: u64) -> u32 {
     (((dev >> 32) & 0xfffff000) | ((dev >> 8) & 0xfff)) as u32
 }
 
-#[cfg(not(target_arch = "loongarch64"))]
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 #[inline(always)]
 const fn major(dev: u64) -> u32 {
     (((dev >> 12) & 0xffffff00) | (dev & 0xff)) as u32
 }
 
-#[cfg(not(target_arch = "loongarch64"))]
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 impl stat {
     #[inline]
     pub const fn dev_minor(&self) -> u32 {
@@ -348,7 +372,7 @@ impl stat {
     }
 }
 
-#[cfg(not(target_arch = "loongarch64"))]
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 #[inline]
 pub fn fstatat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<stat, Errno> {
     let mut buf = stat::uninit();
