@@ -410,42 +410,18 @@ pub fn statx(
 mod tests {
     use super::*;
 
-    fn retry<T, F: Fn() -> Result<T, Errno>>(f: F) -> Result<T, Errno> {
-        loop {
-            match f() {
-                Err(Errno::EINTR) => (),
-                other => return other,
-            }
-        }
-    }
-
-    fn c_stat() -> Result<libc::stat64, Errno> {
-        unsafe {
-            let mut buf = core::mem::MaybeUninit::<libc::stat64>::uninit();
-            if libc::fstatat64(
-                libc::AT_FDCWD,
-                b"/dev/null\0".as_ptr().cast(),
-                buf.as_mut_ptr(),
-                0,
-            ) == -1
-            {
-                return Err(Errno::new(*libc::__errno_location()));
-            }
-            Ok(buf.assume_init())
-        }
-    }
-
     #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
     #[test]
     #[allow(clippy::unnecessary_cast)]
     fn stat64_dev_null() {
         linux_syscalls::init();
 
-        let c_stat = retry(c_stat);
+        let c_stat = crate::tests::retry(crate::tests::c_stat);
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| fstatat(crate::AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
+        let stat =
+            crate::tests::retry(|| fstatat(crate::AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
@@ -473,11 +449,11 @@ mod tests {
     fn statx_dev_null() {
         linux_syscalls::init();
 
-        let c_stat = retry(c_stat);
+        let c_stat = crate::tests::retry(crate::tests::c_stat);
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let statx = retry(|| {
+        let statx = crate::tests::retry(|| {
             statx(
                 crate::AT_FDCWD,
                 b"/dev/null\0",

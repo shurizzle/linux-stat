@@ -299,10 +299,10 @@ pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
-    fn retry<T, F: Fn() -> Result<T, Errno>>(f: F) -> Result<T, Errno> {
+    pub fn retry<T, F: Fn() -> Result<T, Errno>>(f: F) -> Result<T, Errno> {
         loop {
             match f() {
                 Err(Errno::EINTR) => (),
@@ -311,7 +311,7 @@ mod tests {
         }
     }
 
-    fn c_stat() -> Result<libc::stat64, Errno> {
+    pub fn c_stat() -> Result<libc::stat64, Errno> {
         unsafe {
             let mut buf = core::mem::MaybeUninit::<libc::stat64>::uninit();
             if libc::fstatat64(
