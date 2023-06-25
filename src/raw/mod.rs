@@ -45,8 +45,6 @@ pub use stat_imp::stat;
 
 use linux_syscalls::{bitflags, syscall, Errno, Sysno};
 
-pub const AT_FDCWD: RawFd = -100;
-
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum StatXMask: u32 {
@@ -447,7 +445,7 @@ mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| fstatat(AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
+        let stat = retry(|| fstatat(crate::AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
@@ -481,7 +479,7 @@ mod tests {
 
         let statx = retry(|| {
             statx(
-                AT_FDCWD,
+                crate::AT_FDCWD,
                 b"/dev/null\0",
                 StatAtFlags::empty(),
                 StatXMask::empty(),

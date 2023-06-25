@@ -15,6 +15,8 @@ use core::fmt;
 
 use linux_syscalls::bitflags;
 
+pub const AT_FDCWD: RawFd = -100;
+
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum StatAtFlags: u32 {
