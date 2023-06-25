@@ -6,7 +6,6 @@ use crate::{Mode, RawFd, Timestamp};
 
 #[cfg_attr(target_arch = "aarch64", path = "aarch64.rs")]
 #[cfg_attr(target_arch = "arm", path = "arm.rs")]
-#[cfg_attr(target_arch = "loongarch64", path = "loongarch64.rs")]
 #[cfg_attr(target_arch = "mips", path = "mips.rs")]
 #[cfg_attr(target_arch = "mips64", path = "mips64.rs")]
 #[cfg_attr(target_arch = "powerpc", path = "powerpc.rs")]
@@ -17,12 +16,14 @@ use crate::{Mode, RawFd, Timestamp};
 #[cfg_attr(target_arch = "x86_64", path = "x86_64.rs")]
 mod imp;
 
+#[cfg(not(target_arch = "loongarch64"))]
 pub use imp::stat;
 
 use linux_syscalls::{bitflags, syscall, Errno, Sysno};
 
 pub const AT_FDCWD: RawFd = -100;
 
+#[cfg(not(target_arch = "loongarch64"))]
 impl fmt::Debug for stat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("stat")
@@ -312,16 +313,19 @@ impl Statx {
     }
 }
 
+#[cfg(not(target_arch = "loongarch64"))]
 #[inline(always)]
 const fn minor(dev: u64) -> u32 {
     (((dev >> 32) & 0xfffff000) | ((dev >> 8) & 0xfff)) as u32
 }
 
+#[cfg(not(target_arch = "loongarch64"))]
 #[inline(always)]
 const fn major(dev: u64) -> u32 {
     (((dev >> 12) & 0xffffff00) | (dev & 0xff)) as u32
 }
 
+#[cfg(not(target_arch = "loongarch64"))]
 impl stat {
     #[inline]
     pub const fn dev_minor(&self) -> u32 {
@@ -344,6 +348,7 @@ impl stat {
     }
 }
 
+#[cfg(not(target_arch = "loongarch64"))]
 #[inline]
 pub fn fstatat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<stat, Errno> {
     let mut buf = stat::uninit();
@@ -409,9 +414,9 @@ mod tests {
         }
     }
 
+    #[cfg(not(target_arch = "loongarch64"))]
     #[test]
     #[allow(clippy::unnecessary_cast)]
-    #[cfg_attr(target_arch = "loongarch64", ignore)]
     fn stat64_dev_null() {
         let c_stat = retry(c_stat);
         assert!(c_stat.is_ok());
