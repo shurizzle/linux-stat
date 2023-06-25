@@ -428,7 +428,7 @@ mod tests {
 
         let stat = crate::tests::retry(|| unsafe {
             fstatat(
-                crate::AT_FDCWD,
+                crate::CURRENT_DIRECTORY,
                 crate::tests::dev_null(),
                 StatAtFlags::empty(),
             )
@@ -466,7 +466,7 @@ mod tests {
 
         let statx = crate::tests::retry(|| unsafe {
             statx(
-                crate::AT_FDCWD,
+                crate::CURRENT_DIRECTORY,
                 crate::tests::dev_null(),
                 StatAtFlags::empty(),
                 StatXMask::empty(),

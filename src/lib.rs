@@ -24,7 +24,7 @@ use core::fmt;
 
 use linux_syscalls::bitflags;
 
-pub const AT_FDCWD: RawFd = -100;
+pub const CURRENT_DIRECTORY: RawFd = -100;
 
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -378,12 +378,12 @@ pub fn fstatat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Res
 
 #[inline]
 pub unsafe fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
-    fstatat(AT_FDCWD, path, StatAtFlags::empty())
+    fstatat(CURRENT_DIRECTORY, path, StatAtFlags::empty())
 }
 
 #[inline]
 pub unsafe fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
-    fstatat(AT_FDCWD, path, StatAtFlags::SYMLINK_NOFOLLOW)
+    fstatat(CURRENT_DIRECTORY, path, StatAtFlags::SYMLINK_NOFOLLOW)
 }
 
 #[inline]
@@ -443,7 +443,8 @@ pub(crate) mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| unsafe { fstatat(AT_FDCWD, dev_null(), StatAtFlags::empty()) });
+        let stat =
+            retry(|| unsafe { fstatat(CURRENT_DIRECTORY, dev_null(), StatAtFlags::empty()) });
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
