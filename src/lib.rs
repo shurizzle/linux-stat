@@ -443,8 +443,7 @@ pub(crate) mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat =
-            retry(|| unsafe { fstatat(CURRENT_DIRECTORY, dev_null(), StatAtFlags::empty()) });
+        let stat = retry(|| unsafe { stat(dev_null()) });
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
