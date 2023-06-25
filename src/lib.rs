@@ -167,7 +167,102 @@ pub enum Stat {
 }
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-impl Stat {}
+macro_rules! with_stat {
+    ($outer:expr, |$name:ident| $($tt:tt)+) => {
+        match $outer {
+            $crate::Stat::Stat64($name) => $($tt)+,
+            $crate::Stat::Statx($name) => $($tt)+,
+        }
+    };
+}
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+impl Stat {
+    #[inline]
+    pub const fn block_size(&self) -> i32 {
+        with_stat!(self, |s| s.block_size())
+    }
+
+    #[inline]
+    pub const fn nlink(&self) -> u32 {
+        with_stat!(self, |s| s.nlink())
+    }
+
+    #[inline]
+    pub const fn uid(&self) -> u32 {
+        with_stat!(self, |s| s.uid())
+    }
+
+    #[inline]
+    pub const fn gid(&self) -> u32 {
+        with_stat!(self, |s| s.gid())
+    }
+
+    #[inline]
+    pub const fn mode(&self) -> Mode {
+        with_stat!(self, |s| s.mode())
+    }
+
+    #[inline]
+    pub const fn ino(&self) -> u64 {
+        with_stat!(self, |s| s.ino())
+    }
+
+    #[inline]
+    pub const fn size(&self) -> i64 {
+        with_stat!(self, |s| s.size())
+    }
+
+    #[inline]
+    pub const fn blocks(&self) -> i64 {
+        with_stat!(self, |s| s.blocks())
+    }
+
+    #[inline]
+    pub const fn atime(&self) -> Timestamp {
+        with_stat!(self, |s| s.atime())
+    }
+
+    #[inline]
+    pub const fn ctime(&self) -> Timestamp {
+        with_stat!(self, |s| s.ctime())
+    }
+
+    #[inline]
+    pub const fn mtime(&self) -> Timestamp {
+        with_stat!(self, |s| s.mtime())
+    }
+
+    #[inline]
+    pub const fn rdev_major(&self) -> u32 {
+        with_stat!(self, |s| s.rdev_major())
+    }
+
+    #[inline]
+    pub const fn rdev_minor(&self) -> u32 {
+        with_stat!(self, |s| s.rdev_minor())
+    }
+
+    #[inline]
+    pub const fn rdev(&self) -> u64 {
+        with_stat!(self, |s| s.rdev())
+    }
+
+    #[inline]
+    pub const fn dev_major(&self) -> u32 {
+        with_stat!(self, |s| s.dev_major())
+    }
+
+    #[inline]
+    pub const fn dev_minor(&self) -> u32 {
+        with_stat!(self, |s| s.dev_minor())
+    }
+
+    #[inline]
+    pub const fn dev(&self) -> u64 {
+        with_stat!(self, |s| s.dev())
+    }
+}
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 impl fmt::Debug for Stat {
@@ -201,3 +296,64 @@ pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno
 
 #[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
 pub use crate::raw::statx as stat;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn retry<T, F: Fn() -> Result<T, Errno>>(f: F) -> Result<T, Errno> {
+        loop {
+            match f() {
+                Err(Errno::EINTR) => (),
+                other => return other,
+            }
+        }
+    }
+
+    fn c_stat() -> Result<libc::stat64, Errno> {
+        unsafe {
+            let mut buf = core::mem::MaybeUninit::<libc::stat64>::uninit();
+            if libc::fstatat64(
+                libc::AT_FDCWD,
+                b"/dev/null\0".as_ptr().cast(),
+                buf.as_mut_ptr(),
+                0,
+            ) == -1
+            {
+                return Err(Errno::new(*libc::__errno_location()));
+            }
+            Ok(buf.assume_init())
+        }
+    }
+
+    #[test]
+    #[allow(clippy::unnecessary_cast)]
+    fn stat_dev_null() {
+        linux_syscalls::init();
+
+        let c_stat = retry(c_stat);
+        assert!(c_stat.is_ok());
+        let c_stat = c_stat.unwrap();
+
+        let stat = retry(|| stat(AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
+        assert!(stat.is_ok());
+        let stat = stat.unwrap();
+
+        assert_eq!(stat.dev(), c_stat.st_dev as u64);
+        assert_eq!(stat.ino(), c_stat.st_ino as u64);
+        assert_eq!(stat.nlink(), c_stat.st_nlink as u32);
+        assert_eq!(stat.mode().as_u16(), c_stat.st_mode as u16);
+        assert_eq!(stat.uid(), c_stat.st_uid as u32);
+        assert_eq!(stat.gid(), c_stat.st_gid as u32);
+        assert_eq!(stat.rdev(), c_stat.st_rdev as u64);
+        assert_eq!(stat.size(), c_stat.st_size as i64);
+        assert_eq!(stat.block_size(), c_stat.st_blksize as i32);
+        assert_eq!(stat.blocks(), c_stat.st_blocks as i64);
+        assert_eq!(stat.atime().secs, c_stat.st_atime as i64);
+        assert_eq!(stat.atime().nsecs, c_stat.st_atime_nsec as u32);
+        assert_eq!(stat.mtime().secs, c_stat.st_mtime as i64);
+        assert_eq!(stat.mtime().nsecs, c_stat.st_mtime_nsec as u32);
+        assert_eq!(stat.ctime().secs, c_stat.st_ctime as i64);
+        assert_eq!(stat.ctime().nsecs, c_stat.st_ctime_nsec as u32);
+    }
+}
