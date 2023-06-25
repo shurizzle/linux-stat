@@ -377,13 +377,13 @@ pub fn fstatat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Res
 }
 
 #[inline]
-pub unsafe fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
-    fstatat(CURRENT_DIRECTORY, path, StatAtFlags::empty())
+pub fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
+    unsafe { fstatat(CURRENT_DIRECTORY, path, StatAtFlags::empty()) }
 }
 
 #[inline]
-pub unsafe fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
-    fstatat(CURRENT_DIRECTORY, path, StatAtFlags::SYMLINK_NOFOLLOW)
+pub fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
+    unsafe { fstatat(CURRENT_DIRECTORY, path, StatAtFlags::SYMLINK_NOFOLLOW) }
 }
 
 #[inline]
