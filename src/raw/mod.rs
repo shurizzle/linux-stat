@@ -369,7 +369,7 @@ impl fmt::Debug for stat {
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 #[inline]
-pub fn fstatat<P: AsRef<crate::Path>>(
+pub unsafe fn fstatat<P: AsRef<crate::Path>>(
     dirfd: RawFd,
     path: P,
     flags: StatAtFlags,
@@ -390,7 +390,7 @@ pub fn fstatat<P: AsRef<crate::Path>>(
 }
 
 #[inline]
-pub fn statx<P: AsRef<crate::Path>>(
+pub unsafe fn statx<P: AsRef<crate::Path>>(
     dirfd: RawFd,
     path: P,
     flags: StatAtFlags,
@@ -426,7 +426,7 @@ mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = crate::tests::retry(|| {
+        let stat = crate::tests::retry(|| unsafe {
             fstatat(
                 crate::AT_FDCWD,
                 crate::tests::dev_null(),
@@ -464,7 +464,7 @@ mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let statx = crate::tests::retry(|| {
+        let statx = crate::tests::retry(|| unsafe {
             statx(
                 crate::AT_FDCWD,
                 crate::tests::dev_null(),

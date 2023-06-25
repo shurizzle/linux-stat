@@ -345,21 +345,25 @@ where
 }
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-pub fn fstatat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
+pub unsafe fn fstatat<P: AsRef<Path>>(
+    dirfd: RawFd,
+    path: P,
+    flags: StatAtFlags,
+) -> Result<Stat, Errno> {
     let path = path.as_ref();
 
     use core::sync::atomic::Ordering;
 
-    match unsafe { HAS_STATX.load(Ordering::Relaxed) } {
+    match HAS_STATX.load(Ordering::Relaxed) {
         0 => crate::raw::fstatat(dirfd, path, flags).map(Stat::Stat64),
         1 => crate::raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty()).map(Stat::Statx),
         _ => match crate::raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty()) {
             Err(Errno::ENOSYS) => {
-                unsafe { HAS_STATX.store(0, Ordering::Relaxed) };
+                HAS_STATX.store(0, Ordering::Relaxed);
                 crate::raw::fstatat(dirfd, path, flags).map(Stat::Stat64)
             }
             other => {
-                unsafe { HAS_STATX.store(1, Ordering::Relaxed) };
+                HAS_STATX.store(1, Ordering::Relaxed);
                 other.map(Stat::Statx)
             }
         },
@@ -373,17 +377,17 @@ pub fn fstatat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Res
 }
 
 #[inline]
-pub fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
+pub unsafe fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
     fstatat(AT_FDCWD, path, StatAtFlags::empty())
 }
 
 #[inline]
-pub fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
+pub unsafe fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
     fstatat(AT_FDCWD, path, StatAtFlags::SYMLINK_NOFOLLOW)
 }
 
 #[inline]
-pub fn fstat(fd: RawFd) -> Result<Stat, Errno> {
+pub unsafe fn fstat(fd: RawFd) -> Result<Stat, Errno> {
     if fd < 0 {
         return Err(Errno::EBADF);
     }
@@ -439,7 +443,7 @@ pub(crate) mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| fstatat(AT_FDCWD, dev_null(), StatAtFlags::empty()));
+        let stat = retry(|| unsafe { fstatat(AT_FDCWD, dev_null(), StatAtFlags::empty()) });
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
