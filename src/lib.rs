@@ -295,7 +295,9 @@ pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno
 }
 
 #[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
-pub use crate::raw::statx as stat;
+pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno> {
+    raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty())
+}
 
 #[cfg(test)]
 mod tests {
