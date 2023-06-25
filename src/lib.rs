@@ -280,6 +280,15 @@ impl fmt::Debug for Stat {
     }
 }
 
+#[inline]
+pub fn empty_path() -> &'static Path {
+    #[cfg(feature = "std")]
+    let empty: &Path = Path::new("");
+    #[cfg(not(feature = "std"))]
+    let empty: &Path = unsafe { CStr::from_bytes_with_nul_unchecked(b"\0") };
+    empty
+}
+
 #[cfg(feature = "std")]
 #[inline(always)]
 pub(crate) fn run_with_cstr<P, T, F>(path: P, f: F) -> Result<T, Errno>
@@ -300,6 +309,10 @@ where
     const MAX_STACK_ALLOCATION: usize = 32;
 
     let path = path.as_ref().as_os_str().as_bytes();
+
+    if path.is_empty() {
+        return f(unsafe { CStr::from_bytes_with_nul_unchecked(b"\0") });
+    }
 
     if path.last().map(|&c| c == 0).unwrap_or(false) {
         return f(CStr::from_bytes_with_nul(path).map_err(|_| Errno::ENOENT)?);
@@ -332,7 +345,7 @@ where
 }
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-pub fn stat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
+pub fn fstatat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
     let path = path.as_ref();
 
     use core::sync::atomic::Ordering;
@@ -354,8 +367,28 @@ pub fn stat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result
 }
 
 #[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
-pub fn stat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
+#[inline]
+pub fn fstatat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
     raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty())
+}
+
+#[inline]
+pub fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
+    fstatat(AT_FDCWD, path, StatAtFlags::empty())
+}
+
+#[inline]
+pub fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
+    fstatat(AT_FDCWD, path, StatAtFlags::SYMLINK_NOFOLLOW)
+}
+
+#[inline]
+pub fn fstat(fd: RawFd) -> Result<Stat, Errno> {
+    if fd < 0 {
+        return Err(Errno::EBADF);
+    }
+
+    fstatat(fd, empty_path(), StatAtFlags::EMPTY_PATH)
 }
 
 #[cfg(test)]
@@ -406,7 +439,7 @@ pub(crate) mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| stat(AT_FDCWD, dev_null(), StatAtFlags::empty()));
+        let stat = retry(|| fstatat(AT_FDCWD, dev_null(), StatAtFlags::empty()));
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
