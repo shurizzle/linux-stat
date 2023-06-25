@@ -1,0 +1,2 @@
+[target.loongarch64-unknown-linux-gnu]
+image = "shurizzle/toolchain-gnu-musl-cargoenv-loongarch64"
