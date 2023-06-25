@@ -1,6 +1,5 @@
 #![cfg(target_os = "linux")]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(use_asm_exp, feature(asm_experimental_arch))]
 
 #[cfg(feature = "std")]
 pub(crate) use std::os::unix::io::RawFd;
