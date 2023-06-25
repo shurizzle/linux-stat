@@ -7,11 +7,22 @@ pub(crate) use std::os::unix::io::RawFd;
 #[cfg(not(feature = "std"))]
 pub type RawFd = core::ffi::c_int;
 
+pub use linux_syscalls::Errno;
+
 pub mod raw;
 
 use core::fmt;
 
 use linux_syscalls::bitflags;
+
+bitflags! {
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum StatAtFlags: u32 {
+        EMPTY_PATH = 0x1000,
+        NO_AUTOMOUNT = 0x800,
+        SYMLINK_NOFOLLOW = 0x100,
+    }
+}
 
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -139,3 +150,52 @@ impl Timestamp {
         self.nsecs
     }
 }
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+static mut HAS_STATX: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(2);
+
+#[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
+pub type Stat = crate::raw::Statx;
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+#[derive(Clone, Copy)]
+pub enum Stat {
+    Stat64(crate::raw::stat),
+    Statx(crate::raw::Statx),
+}
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+impl Stat {}
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+impl fmt::Debug for Stat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Stat64(s) => s.debug(f, "Stat"),
+            Self::Statx(s) => s.debug(f, "Stat"),
+        }
+    }
+}
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno> {
+    use core::sync::atomic::Ordering;
+
+    match unsafe { HAS_STATX.load(Ordering::Relaxed) } {
+        0 => crate::raw::fstatat(dirfd, path, flags).map(Stat::Stat64),
+        1 => crate::raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty()).map(Stat::Statx),
+        _ => match crate::raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty()) {
+            Err(Errno::ENOSYS) => {
+                unsafe { HAS_STATX.store(0, Ordering::Relaxed) };
+                crate::raw::fstatat(dirfd, path, flags).map(Stat::Stat64)
+            }
+            other => {
+                unsafe { HAS_STATX.store(1, Ordering::Relaxed) };
+                other.map(Stat::Statx)
+            }
+        },
+    }
+}
+
+#[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
+pub use crate::raw::statx as stat;

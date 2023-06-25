@@ -2,7 +2,7 @@
 
 use core::{fmt, mem::MaybeUninit};
 
-use crate::{Mode, RawFd, Timestamp};
+use crate::{Mode, RawFd, StatAtFlags, Timestamp};
 
 #[cfg_attr(
     all(not(feature = "linux_4_11"), target_arch = "aarch64"),
@@ -46,36 +46,6 @@ pub use stat_imp::stat;
 use linux_syscalls::{bitflags, syscall, Errno, Sysno};
 
 pub const AT_FDCWD: RawFd = -100;
-
-#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-impl fmt::Debug for stat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("stat")
-            .field("dev", &self.dev())
-            .field("ino", &self.ino())
-            .field("nlink", &self.nlink())
-            .field("mode", &self.mode())
-            .field("uid", &self.uid())
-            .field("gid", &self.gid())
-            .field("rdev", &self.rdev())
-            .field("size", &self.size())
-            .field("block_size", &self.block_size())
-            .field("blocks", &self.blocks())
-            .field("atime", &self.atime())
-            .field("mtime", &self.mtime())
-            .field("ctime", &self.ctime())
-            .finish()
-    }
-}
-
-bitflags! {
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub enum StatAtFlags: u32 {
-        EMPTY_PATH = 0x1000,
-        NO_AUTOMOUNT = 0x800,
-        SYMLINK_NOFOLLOW = 0x100,
-    }
-}
 
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -294,11 +264,9 @@ impl Statx {
     pub const fn dio_offset_align(&self) -> u32 {
         self.stx_dio_offset_align
     }
-}
 
-impl fmt::Debug for Statx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("stat")
+    pub(crate) fn debug(&self, f: &mut fmt::Formatter<'_>, name: &str) -> fmt::Result {
+        f.debug_struct(name)
             .field("dev", &self.dev())
             .field("ino", &self.ino())
             .field("nlink", &self.nlink())
@@ -319,6 +287,12 @@ impl fmt::Debug for Statx {
             .field("dio_mem_align", &self.dio_mem_align())
             .field("dio_offset_align", &self.dio_offset_align())
             .finish()
+    }
+}
+
+impl fmt::Debug for Statx {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.debug(f, "Statx")
     }
 }
 
@@ -369,6 +343,31 @@ impl stat {
     #[inline]
     pub const fn rdev_major(&self) -> u32 {
         major(self.rdev())
+    }
+
+    pub(crate) fn debug(&self, f: &mut fmt::Formatter<'_>, name: &str) -> fmt::Result {
+        f.debug_struct(name)
+            .field("dev", &self.dev())
+            .field("ino", &self.ino())
+            .field("nlink", &self.nlink())
+            .field("mode", &self.mode())
+            .field("uid", &self.uid())
+            .field("gid", &self.gid())
+            .field("rdev", &self.rdev())
+            .field("size", &self.size())
+            .field("block_size", &self.block_size())
+            .field("blocks", &self.blocks())
+            .field("atime", &self.atime())
+            .field("mtime", &self.mtime())
+            .field("ctime", &self.ctime())
+            .finish()
+    }
+}
+
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+impl fmt::Debug for stat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.debug(f, "stat")
     }
 }
 
@@ -432,13 +431,13 @@ mod tests {
                 0,
             ) == -1
             {
-                return Err(Errno::from_io_error(std::io::Error::last_os_error()).unwrap());
+                return Err(Errno::new(*libc::__errno_location()));
             }
             Ok(buf.assume_init())
         }
     }
 
-    #[cfg(not(target_arch = "loongarch64"))]
+    #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
     #[test]
     #[allow(clippy::unnecessary_cast)]
     fn stat64_dev_null() {
