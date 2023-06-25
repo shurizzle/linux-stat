@@ -14,10 +14,10 @@ use crate::{Mode, RawFd, Timestamp};
 #[cfg_attr(target_arch = "s390x", path = "s390x.rs")]
 #[cfg_attr(target_arch = "x86", path = "x86.rs")]
 #[cfg_attr(target_arch = "x86_64", path = "x86_64.rs")]
-mod imp;
+mod stat_imp;
 
 #[cfg(not(target_arch = "loongarch64"))]
-pub use imp::stat;
+pub use stat_imp::stat;
 
 use linux_syscalls::{bitflags, syscall, Errno, Sysno};
 
@@ -354,7 +354,7 @@ pub fn fstatat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<stat, Er
     let mut buf = stat::uninit();
     unsafe {
         syscall!(
-            imp::SYS_FSTATAT,
+            stat_imp::SYS_FSTATAT,
             dirfd,
             path.as_ptr(),
             buf.as_mut_ptr(),
