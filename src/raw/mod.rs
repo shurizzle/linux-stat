@@ -441,6 +441,8 @@ mod tests {
     #[test]
     #[allow(clippy::unnecessary_cast)]
     fn stat64_dev_null() {
+        linux_syscalls::init();
+
         let c_stat = retry(c_stat);
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
@@ -471,6 +473,8 @@ mod tests {
     #[allow(clippy::unnecessary_cast)]
     #[cfg_attr(target_arch = "s390x", ignore)]
     fn statx_dev_null() {
+        linux_syscalls::init();
+
         let c_stat = retry(c_stat);
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
