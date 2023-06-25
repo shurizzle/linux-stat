@@ -266,10 +266,7 @@ impl Stat {
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 impl fmt::Debug for Stat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Stat64(s) => s.debug(f, "Stat"),
-            Self::Statx(s) => s.debug(f, "Stat"),
-        }
+        with_stat!(self, |s| s.debug(f, "Stat"))
     }
 }
 

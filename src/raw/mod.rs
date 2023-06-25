@@ -1,5 +1,3 @@
-#![allow(non_camel_case_types)]
-
 use core::{fmt, mem::MaybeUninit};
 
 use crate::{Mode, RawFd, StatAtFlags, Timestamp};
