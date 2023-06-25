@@ -4,7 +4,17 @@
 #[cfg(feature = "std")]
 pub(crate) use std::os::unix::io::RawFd;
 #[cfg(not(feature = "std"))]
-pub type RawFd = core::ffi::c_int;
+pub type RawFd = cty::c_int;
+
+#[cfg(not(extern_cstr))]
+pub use core::ffi::CStr;
+#[cfg(extern_cstr)]
+pub use cstr_core::CStr;
+
+#[cfg(feature = "std")]
+pub use std::path::Path;
+#[cfg(not(feature = "std"))]
+pub use CStr as Path;
 
 pub use linux_syscalls::Errno;
 
@@ -270,8 +280,61 @@ impl fmt::Debug for Stat {
     }
 }
 
+#[cfg(feature = "std")]
+#[inline(always)]
+pub(crate) fn run_with_cstr<P, T, F>(path: P, f: F) -> Result<T, Errno>
+where
+    P: AsRef<Path>,
+    F: FnOnce(&CStr) -> Result<T, Errno>,
+{
+    use core::mem::MaybeUninit;
+    #[cfg(extern_cstr)]
+    use cstr_core::CString;
+    #[cfg(not(extern_cstr))]
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    #[cfg(not(target_os = "espidf"))]
+    const MAX_STACK_ALLOCATION: usize = 384;
+    #[cfg(target_os = "espidf")]
+    const MAX_STACK_ALLOCATION: usize = 32;
+
+    let path = path.as_ref().as_os_str().as_bytes();
+
+    if path.last().map(|&c| c == 0).unwrap_or(false) {
+        return f(CStr::from_bytes_with_nul(path).map_err(|_| Errno::ENOENT)?);
+    }
+
+    if path.len() >= MAX_STACK_ALLOCATION {
+        return CString::new(path).map_or(Err(Errno::ENOENT), |path| f(&path));
+    }
+
+    let mut buf = MaybeUninit::<[u8; MAX_STACK_ALLOCATION]>::uninit();
+    let buf_ptr = buf.as_mut_ptr() as *mut u8;
+
+    unsafe {
+        core::ptr::copy_nonoverlapping(path.as_ptr(), buf_ptr, path.len());
+        buf_ptr.add(path.len()).write(0);
+    }
+
+    CStr::from_bytes_with_nul(unsafe { core::slice::from_raw_parts(buf_ptr, path.len() + 1) })
+        .map_or(Err(Errno::ENOENT), f)
+}
+
+#[cfg(not(feature = "std"))]
+#[inline(always)]
+pub(crate) fn run_with_cstr<P, T, F>(path: P, f: F) -> Result<T, Errno>
+where
+    P: AsRef<Path>,
+    F: FnOnce(&CStr) -> Result<T, Errno>,
+{
+    f(path.as_ref())
+}
+
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno> {
+pub fn stat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
+    let path = path.as_ref();
+
     use core::sync::atomic::Ordering;
 
     match unsafe { HAS_STATX.load(Ordering::Relaxed) } {
@@ -291,13 +354,23 @@ pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno
 }
 
 #[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
-pub fn stat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<Stat, Errno> {
+pub fn stat<P: AsRef<Path>>(dirfd: RawFd, path: P, flags: StatAtFlags) -> Result<Stat, Errno> {
     raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty())
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[cfg(feature = "std")]
+    pub fn dev_null() -> &'static Path {
+        Path::new("/dev/null\0")
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub fn dev_null() -> &'static CStr {
+        unsafe { CStr::from_bytes_with_nul_unchecked(b"/dev/null\0") }
+    }
 
     pub fn retry<T, F: Fn() -> Result<T, Errno>>(f: F) -> Result<T, Errno> {
         loop {
@@ -313,7 +386,7 @@ pub(crate) mod tests {
             let mut buf = core::mem::MaybeUninit::<libc::stat64>::uninit();
             if libc::fstatat64(
                 libc::AT_FDCWD,
-                b"/dev/null\0".as_ptr().cast(),
+                b"/dev/null\0".as_ptr() as *const _,
                 buf.as_mut_ptr(),
                 0,
             ) == -1
@@ -333,7 +406,7 @@ pub(crate) mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| stat(AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
+        let stat = retry(|| stat(AT_FDCWD, dev_null(), StatAtFlags::empty()));
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 

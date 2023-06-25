@@ -369,39 +369,47 @@ impl fmt::Debug for stat {
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 #[inline]
-pub fn fstatat(dirfd: RawFd, path: &[u8], flags: StatAtFlags) -> Result<stat, Errno> {
-    let mut buf = stat::uninit();
-    unsafe {
-        syscall!(
-            stat_imp::SYS_FSTATAT,
-            dirfd,
-            path.as_ptr(),
-            buf.as_mut_ptr(),
-            flags.bits()
-        )?;
-        Ok(buf.assume_init())
-    }
+pub fn fstatat<P: AsRef<crate::Path>>(
+    dirfd: RawFd,
+    path: P,
+    flags: StatAtFlags,
+) -> Result<stat, Errno> {
+    crate::run_with_cstr(path, |path| {
+        let mut buf = stat::uninit();
+        unsafe {
+            syscall!(
+                stat_imp::SYS_FSTATAT,
+                dirfd,
+                path.as_ptr(),
+                buf.as_mut_ptr(),
+                flags.bits()
+            )?;
+            Ok(buf.assume_init())
+        }
+    })
 }
 
 #[inline]
-pub fn statx(
+pub fn statx<P: AsRef<crate::Path>>(
     dirfd: RawFd,
-    path: &[u8],
+    path: P,
     flags: StatAtFlags,
     mask: StatXMask,
 ) -> Result<Statx, Errno> {
-    let mut buf = Statx::uninit();
-    unsafe {
-        syscall!(
-            Sysno::statx,
-            dirfd,
-            path.as_ptr(),
-            flags.bits(),
-            mask.bits(),
-            buf.as_mut_ptr(),
-        )?;
-        Ok(buf.assume_init())
-    }
+    crate::run_with_cstr(path, |path| {
+        let mut buf = Statx::uninit();
+        unsafe {
+            syscall!(
+                Sysno::statx,
+                dirfd,
+                path.as_ptr(),
+                flags.bits(),
+                mask.bits(),
+                buf.as_mut_ptr(),
+            )?;
+            Ok(buf.assume_init())
+        }
+    })
 }
 
 #[cfg(test)]
@@ -418,8 +426,13 @@ mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat =
-            crate::tests::retry(|| fstatat(crate::AT_FDCWD, b"/dev/null\0", StatAtFlags::empty()));
+        let stat = crate::tests::retry(|| {
+            fstatat(
+                crate::AT_FDCWD,
+                crate::tests::dev_null(),
+                StatAtFlags::empty(),
+            )
+        });
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
@@ -454,7 +467,7 @@ mod tests {
         let statx = crate::tests::retry(|| {
             statx(
                 crate::AT_FDCWD,
-                b"/dev/null\0",
+                crate::tests::dev_null(),
                 StatAtFlags::empty(),
                 StatXMask::empty(),
             )
