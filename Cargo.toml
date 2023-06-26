@@ -11,6 +11,25 @@ repository = "https://github.com/shurizzle/linux-stat"
 homepage = "https://github.com/shurizzle/linux-stat"
 documentation = "https://docs.rs/linux-stat"
 
+[package.metadata]
+msrv = "1.46.0"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-unknown-linux-gnu"
+targets = [
+  "aarch64-unknown-linux-gnu",
+  "arm-unknown-linux-gnueabi",
+  "mips-unknown-linux-gnu",
+  "mips64-unknown-linux-gnuabi64",
+  "powerpc-unknown-linux-gnu",
+  "powerpc64-unknown-linux-gnu",
+  "riscv32gc-unknown-linux-gnu",
+  "riscv64gc-unknown-linux-gnu",
+  "s390x-unknown-linux-gnu",
+  "i686-unknown-linux-gnu",
+  "loongarch64-unknown-linux-gnu",
+  "x86_64-unknown-linux-gnux32",
+]
 
 [features]
 default = ["std"]
