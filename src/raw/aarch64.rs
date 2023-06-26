@@ -6,6 +6,7 @@ use crate::Timestamp;
 
 pub const SYS_FSTATAT: Sysno = Sysno::fstatat;
 
+/// `fstatat()` file informations representation.
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct stat {
@@ -32,16 +33,19 @@ pub struct stat {
 }
 
 impl stat {
+    /// Returns the device on which this file (inode) resides.
     #[inline]
     pub const fn dev(&self) -> u64 {
         self.st_dev
     }
 
+    /// Returns the inode number of the file.
     #[inline]
-    pub const fn ino(&self) -> u64 {
+    pub const fn inode(&self) -> u64 {
         self.st_ino
     }
 
+    /// Returns the number of hard links on a file.
     #[inline]
     pub const fn nlink(&self) -> u32 {
         self.st_nlink
@@ -52,36 +56,50 @@ impl stat {
         self.st_mode as u16
     }
 
+    /// Returns the user ID of the owner of the file.
     #[inline]
     pub const fn uid(&self) -> u32 {
         self.st_uid
     }
 
+    /// Returns the ID of the group owner of the file.
     #[inline]
     pub const fn gid(&self) -> u32 {
         self.st_gid
     }
 
+    /// Returns the device that this file (inode) represents if the file is of
+    /// block or character device type
     #[inline]
     pub const fn rdev(&self) -> u64 {
         self.st_rdev
     }
 
+    /// Returns the size of the file (if it is a regular file or a symbolic
+    /// link) in bytes. The size of a symbolic link is the length of
+    /// the pathname it contains, without a terminating null byte.
     #[inline]
     pub const fn size(&self) -> i64 {
         self.st_size
     }
 
+    /// Returns the "preferred" block size for efficient filesystem I/O.
+    /// (Writing to a file in smaller chunks may cause an inefficient
+    /// read-modify-rewrite.)
     #[inline]
     pub const fn block_size(&self) -> i32 {
         self.st_blksize
     }
 
+    /// Returns the number of blocks allocated to the file on the medium, in
+    /// 512-byte units. (This may be smaller than stx_size/512 when the
+    /// file has holes.)
     #[inline]
     pub const fn blocks(&self) -> i64 {
         self.st_blocks
     }
 
+    /// Returns the file's last access timestamp.
     #[inline]
     pub const fn atime(&self) -> Timestamp {
         Timestamp {
@@ -90,6 +108,7 @@ impl stat {
         }
     }
 
+    /// Returns the file's last modification timestamp.
     #[inline]
     pub const fn mtime(&self) -> Timestamp {
         Timestamp {
@@ -98,6 +117,7 @@ impl stat {
         }
     }
 
+    /// Returns the file's last status change timestamp.
     #[inline]
     pub const fn ctime(&self) -> Timestamp {
         Timestamp {
@@ -106,6 +126,7 @@ impl stat {
         }
     }
 
+    #[doc(hidden)]
     pub fn uninit() -> core::mem::MaybeUninit<Self> {
         let mut res = core::mem::MaybeUninit::uninit();
         let buf: &mut Self = unsafe { &mut *res.as_mut_ptr() };
