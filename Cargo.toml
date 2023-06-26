@@ -28,7 +28,6 @@ targets = [
   "s390x-unknown-linux-gnu",
   "i686-unknown-linux-gnu",
   "loongarch64-unknown-linux-gnu",
-  "x86_64-unknown-linux-gnux32",
 ]
 
 [features]
@@ -41,5 +40,7 @@ libc = { version = "0.2.144", default-features = false }
 
 [dependencies]
 linux-syscalls = { version = "0.1.1", default-features = false }
+
+[target.'cfg(all(unix, not(target_arch = "loongarch64")))'.dependencies]
 cstr_core = { version = "0.2.6", default-features = false }
 cty = { version = "0.2.2", default-features = false }

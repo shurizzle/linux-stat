@@ -51,7 +51,7 @@ impl stat {
 
     #[inline]
     pub(crate) const fn raw_mode(&self) -> u16 {
-        self.st_mode
+        self.st_mode as u16
     }
 
     /// Returns the user ID of the owner of the file.
@@ -127,13 +127,15 @@ impl stat {
     #[doc(hidden)]
     pub fn uninit() -> core::mem::MaybeUninit<Self> {
         let mut res = core::mem::MaybeUninit::uninit();
-        let buf: &mut Self = unsafe { &mut *res.as_mut_ptr() };
-        core::ptr::write_bytes(
-            &mut buf.__pad0[0] as *mut u32 as *mut u8,
-            0,
-            core::mem::size_of_val(&buf.__pad0),
-        );
-        buf.__pad1 = 0;
+        unsafe {
+            let buf: &mut Self = &mut *res.as_mut_ptr();
+            core::ptr::write_bytes(
+                &mut buf.__pad0[0] as *mut u32 as *mut u8,
+                0,
+                core::mem::size_of_val(&buf.__pad0),
+            );
+            buf.__pad1 = 0;
+        }
         res
     }
 }

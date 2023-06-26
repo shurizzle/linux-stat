@@ -4,9 +4,12 @@
 #[cfg(feature = "std")]
 #[doc(no_inline)]
 pub use std::os::unix::io::RawFd;
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), not(target_arch = "loongarch64")))]
 /// Raw file descriptor.
 pub type RawFd = cty::c_int;
+#[cfg(all(not(feature = "std"), target_arch = "loongarch64"))]
+/// Raw file descriptor.
+pub type RawFd = core::ffi::c_int;
 
 #[cfg(not(extern_cstr))]
 pub use core::ffi::CStr;

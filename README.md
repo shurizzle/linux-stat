@@ -40,6 +40,7 @@ linux-stat = { version = "*", default-features = false }
 - s390x
 - x86
 - x86_64
+- loongarch64
 
 ### MSRV
 

@@ -7,6 +7,11 @@ pub struct Version {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+
+    if std::env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "loongarch64" {
+        return;
+    }
 
     let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
     let mut is_clippy_driver = false;

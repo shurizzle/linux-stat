@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  rustfmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+    - run: cargo fmt --all -- --check
+
+  check:
+    name: Check
+    permissions: write-all
+    needs: rustfmt
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-gnu
+            toolchain: stable
+          - target: arm-unknown-linux-gnueabi
+            toolchain: stable
+          - target: mips-unknown-linux-gnu
+            toolchain: stable
+          - target: mipsel-unknown-linux-gnu
+            toolchain: stable
+          - target: mips64-unknown-linux-gnuabi64
+            toolchain: stable
+          - target: mips64el-unknown-linux-gnuabi64
+            toolchain: stable
+          - target: powerpc-unknown-linux-gnu
+            toolchain: stable
+          - target: powerpc64-unknown-linux-gnu
+            toolchain: stable
+          - target: powerpc64le-unknown-linux-gnu
+            toolchain: stable
+          - target: riscv64gc-unknown-linux-gnu
+            toolchain: stable
+          - target: s390x-unknown-linux-gnu
+            toolchain: stable
+          - target: i686-unknown-linux-gnu
+            toolchain: stable
+          - target: x86_64-unknown-linux-gnu
+            toolchain: stable
+          - target: loongarch64-unknown-linux-gnu
+            toolchain: nightly
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install ${{ matrix.toolchain }} toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.toolchain }}
+        default: true
+        components: rustfmt, clippy
+
+    - name: Install target
+      run: rustup target add ${{ matrix.target }} --toolchain ${{ matrix.toolchain }}
+
+    - name: Install UBI
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.local/bin"
+        curl --silent --location \
+            https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh |
+            TARGET="$HOME/.local/bin" sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Rust Cross
+      shell: bash
+      run: ubi -p cross-rs/cross -i "$HOME/.local/bin"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Clippy ${{ matrix.target }} default
+      uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        toolchain: ${{ matrix.toolchain }}
+        use-cross: true
+        args: --release -vv --no-deps --target ${{ matrix.target }}
+    - name: Clippy ${{ matrix.target }} no_std
+      uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        toolchain: ${{ matrix.toolchain }}
+        use-cross: true
+        args: --release -vv --no-deps --target ${{ matrix.target }} --no-default-features --features linux_4_11
+
+  test:
+    name: Test
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - arm-unknown-linux-gnueabi
+          - mips-unknown-linux-gnu
+          - mipsel-unknown-linux-gnu
+          - mips64-unknown-linux-gnuabi64
+          - mips64el-unknown-linux-gnuabi64
+          - powerpc-unknown-linux-gnu
+          - powerpc64-unknown-linux-gnu
+          - powerpc64le-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+          - s390x-unknown-linux-gnu
+          - i686-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
+          - loongarch64-unknown-linux-gnu
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+    - name: Install 1.46.0 toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: 1.46.0
+        default: false
+      if: ${{ matrix.target != 'loongarch64-unknown-linux-gnu' }}
+    - name: Install nightly toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        default: false
+
+    - name: Install UBI
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.local/bin"
+        curl --silent --location \
+            https://raw.githubusercontent.com/houseabsolute/ubi/master/bootstrap/bootstrap-ubi.sh |
+            TARGET="$HOME/.local/bin" sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Rust Cross
+      shell: bash
+      run: ubi -p cross-rs/cross -i "$HOME/.local/bin"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install targets
+      run: |
+        if [ "${{ matrix.target }}" != loongarch64-unknown-linux-gnu ]; then
+          rustup target add ${{ matrix.target }} --toolchain stable
+          rustup target add ${{ matrix.target }} --toolchain 1.46.0
+        fi
+        rustup target add ${{ matrix.target }} --toolchain nightly
+
+    - name: Test ${{ matrix.target }} 1.46.0
+      run: |
+        rm -rf Cargo.lock target
+        cross +1.46.0 test --target ${{ matrix.target }}
+      if: ${{ matrix.target != 'loongarch64-unknown-linux-gnu' }}
+    - name: Test ${{ matrix.target }} stable
+      run: |
+        rm -rf Cargo.lock target
+        cross +stable test --target ${{ matrix.target }}
+      if: ${{ matrix.target != 'loongarch64-unknown-linux-gnu' }}
+    - name: Test ${{ matrix.target }} nightly
+      run: |
+        rm -rf Cargo.lock target
+        cross +nightly test --target ${{ matrix.target }}
