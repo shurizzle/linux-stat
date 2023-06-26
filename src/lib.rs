@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
-pub(crate) use std::os::unix::io::RawFd;
+pub use std::os::unix::io::RawFd;
 #[cfg(not(feature = "std"))]
 pub type RawFd = cty::c_int;
 
