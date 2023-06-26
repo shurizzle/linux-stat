@@ -1,6 +1,6 @@
 use core::{fmt, mem::MaybeUninit};
 
-use crate::{Mode, RawFd, StatAtFlags, Timestamp};
+use crate::{FileType, Mode, RawFd, StatAtFlags, Timestamp};
 
 #[cfg_attr(
     all(not(feature = "linux_4_11"), target_arch = "aarch64"),
@@ -106,7 +106,7 @@ pub struct Statx {
     stx_nlink: u32,
     stx_uid: u32,
     stx_gid: u32,
-    stx_mode: Mode,
+    stx_mode: u16,
     stx_ino: u64,
     stx_size: i64,
     stx_blocks: i64,
@@ -131,6 +131,20 @@ const fn makedev(minor: u32, major: u32) -> u64 {
         | ((minor as u64) & 0x00000fff) << 8
         | (((major as u64) & 0xffffff00) << 12)
         | (major as u64) & 0xff
+}
+
+#[inline(always)]
+const fn file_type(mode: u16) -> FileType {
+    match mode & 0o170000 {
+        0o140000 => FileType::Socket,
+        0o120000 => FileType::Link,
+        0o100000 => FileType::Regular,
+        0o060000 => FileType::Block,
+        0o040000 => FileType::Directory,
+        0o020000 => FileType::Character,
+        0o010000 => FileType::Fifo,
+        _ => FileType::Unknown,
+    }
 }
 
 impl Statx {
@@ -161,7 +175,56 @@ impl Statx {
 
     #[inline]
     pub const fn mode(&self) -> Mode {
-        self.stx_mode
+        Mode(self.stx_mode & !0o170000)
+    }
+
+    pub const fn file_type(&self) -> FileType {
+        file_type(self.stx_mode)
+    }
+
+    #[inline]
+    pub const fn is_socket(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o140000
+    }
+
+    #[inline]
+    pub const fn is_link(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o120000
+    }
+
+    #[inline]
+    pub const fn is_regular(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o100000
+    }
+
+    #[inline]
+    pub const fn is_block(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o060000
+    }
+
+    #[inline]
+    pub const fn is_directory(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o040000
+    }
+
+    #[inline]
+    pub const fn is_dir(&self) -> bool {
+        self.is_directory()
+    }
+
+    #[inline]
+    pub const fn is_character(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o020000
+    }
+
+    #[inline]
+    pub const fn is_char(&self) -> bool {
+        self.is_character()
+    }
+
+    #[inline]
+    pub const fn is_fifo(&self) -> bool {
+        self.stx_mode & 0o170000 == 0o010000
     }
 
     #[inline]
@@ -321,6 +384,60 @@ const fn major(dev: u64) -> u32 {
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 impl stat {
+    #[inline]
+    pub const fn mode(&self) -> Mode {
+        Mode(self.raw_mode() & !0o170000)
+    }
+
+    pub const fn file_type(&self) -> FileType {
+        file_type(self.raw_mode())
+    }
+
+    #[inline]
+    pub const fn is_socket(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o140000
+    }
+
+    #[inline]
+    pub const fn is_link(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o120000
+    }
+
+    #[inline]
+    pub const fn is_regular(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o100000
+    }
+
+    #[inline]
+    pub const fn is_block(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o060000
+    }
+
+    #[inline]
+    pub const fn is_directory(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o040000
+    }
+
+    #[inline]
+    pub const fn is_dir(&self) -> bool {
+        self.is_directory()
+    }
+
+    #[inline]
+    pub const fn is_character(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o020000
+    }
+
+    #[inline]
+    pub const fn is_char(&self) -> bool {
+        self.is_character()
+    }
+
+    #[inline]
+    pub const fn is_fifo(&self) -> bool {
+        self.raw_mode() & 0o170000 == 0o010000
+    }
+
     #[inline]
     pub const fn dev_minor(&self) -> u32 {
         minor(self.dev())

@@ -2,7 +2,7 @@
 
 use linux_syscalls::Sysno;
 
-use crate::{Mode, Timestamp};
+use crate::Timestamp;
 
 pub const SYS_FSTATAT: Sysno = Sysno::fstatat;
 
@@ -48,8 +48,8 @@ impl stat {
     }
 
     #[inline]
-    pub const fn mode(&self) -> Mode {
-        Mode(self.st_mode as u16)
+    pub(crate) const fn raw_mode(&self) -> u16 {
+        self.st_mode as u16
     }
 
     #[inline]

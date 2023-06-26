@@ -162,6 +162,18 @@ impl Timestamp {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FileType {
+    Block,
+    Character,
+    Directory,
+    Fifo,
+    Link,
+    Regular,
+    Socket,
+    Unknown,
+}
+
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 static mut HAS_STATX: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(2);
 
@@ -210,6 +222,55 @@ impl Stat {
     #[inline]
     pub const fn mode(&self) -> Mode {
         with_stat!(self, |s| s.mode())
+    }
+
+    pub const fn file_type(&self) -> FileType {
+        with_stat!(self, |s| s.file_type())
+    }
+
+    #[inline]
+    pub const fn is_socket(&self) -> bool {
+        with_stat!(self, |s| s.is_socket())
+    }
+
+    #[inline]
+    pub const fn is_link(&self) -> bool {
+        with_stat!(self, |s| s.is_link())
+    }
+
+    #[inline]
+    pub const fn is_regular(&self) -> bool {
+        with_stat!(self, |s| s.is_regular())
+    }
+
+    #[inline]
+    pub const fn is_block(&self) -> bool {
+        with_stat!(self, |s| s.is_block())
+    }
+
+    #[inline]
+    pub const fn is_directory(&self) -> bool {
+        with_stat!(self, |s| s.is_directory())
+    }
+
+    #[inline]
+    pub const fn is_dir(&self) -> bool {
+        with_stat!(self, |s| s.is_dir())
+    }
+
+    #[inline]
+    pub const fn is_character(&self) -> bool {
+        with_stat!(self, |s| s.is_character())
+    }
+
+    #[inline]
+    pub const fn is_char(&self) -> bool {
+        with_stat!(self, |s| s.is_char())
+    }
+
+    #[inline]
+    pub const fn is_fifo(&self) -> bool {
+        with_stat!(self, |s| s.is_fifo())
     }
 
     #[inline]
@@ -443,7 +504,7 @@ pub(crate) mod tests {
         assert!(c_stat.is_ok());
         let c_stat = c_stat.unwrap();
 
-        let stat = retry(|| unsafe { stat(dev_null()) });
+        let stat = retry(|| stat(dev_null()));
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
