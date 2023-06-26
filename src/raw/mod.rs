@@ -620,6 +620,12 @@ impl fmt::Debug for stat {
     }
 }
 
+/// Invoke `fstatat` system call.
+///
+/// # Safety
+///
+/// This functions is inherently unsafe because it just wrap the system call
+/// and directory file descriptor (`dirfd`) cannot be checked.
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 #[inline]
 pub unsafe fn fstatat<P: AsRef<crate::Path>>(
@@ -640,6 +646,12 @@ pub unsafe fn fstatat<P: AsRef<crate::Path>>(
     })
 }
 
+/// Invoke `statx` system call.
+///
+/// # Safety
+///
+/// This functions is inherently unsafe because it just wrap the system call
+/// and directory file descriptor (`dirfd`) cannot be checked.
 #[inline]
 pub unsafe fn statx<P: AsRef<crate::Path>>(
     dirfd: RawFd,

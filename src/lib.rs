@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
-/// Raw file descriptor.
+#[doc(no_inline)]
 pub use std::os::unix::io::RawFd;
 #[cfg(not(feature = "std"))]
 /// Raw file descriptor.
@@ -503,6 +503,13 @@ where
     f(path.as_ref())
 }
 
+/// If not feature `linux_4_11` try to call [crate::raw::statx] and fallback
+/// to [crate::raw::fstatat] if not available.
+///
+/// # Safety
+///
+/// This function is marked as unsafe because directory file descriptor
+/// (`dirfd`) cannot be checked.
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 pub unsafe fn fstatat<P: AsRef<Path>>(
     dirfd: RawFd,
@@ -530,6 +537,13 @@ pub unsafe fn fstatat<P: AsRef<Path>>(
     }
 }
 
+/// If not feature `linux_4_11` try to call [crate::raw::statx] and fallback
+/// to [crate::raw::fstatat] if not available.
+///
+/// # Safety
+///
+/// This function is marked as unsafe because directory file descriptor
+/// (`dirfd`) cannot be checked.
 #[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
 #[inline]
 pub unsafe fn fstatat<P: AsRef<Path>>(
@@ -540,23 +554,33 @@ pub unsafe fn fstatat<P: AsRef<Path>>(
     raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty())
 }
 
+/// Call [crate::fstatat] for `path` in the current directory
+/// following symlinks.
 #[inline]
 pub fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
     unsafe { fstatat(CURRENT_DIRECTORY, path, StatAtFlags::empty()) }
 }
 
+/// Call [crate::fstatat] for `path` in the current directory
+/// not following symlinks.
 #[inline]
 pub fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
     unsafe { fstatat(CURRENT_DIRECTORY, path, StatAtFlags::SYMLINK_NOFOLLOW) }
 }
 
+/// Call [crate::fstatat] on the `dirfd` directory file descriptor
+///
+/// # Safety
+///
+/// This function is marked as unsafe because directory file descriptor
+/// (`dirfd`) cannot be checked.
 #[inline]
-pub unsafe fn fstat(fd: RawFd) -> Result<Stat, Errno> {
-    if fd < 0 {
+pub unsafe fn fstat(dirfd: RawFd) -> Result<Stat, Errno> {
+    if dirfd < 0 {
         return Err(Errno::EBADF);
     }
 
-    fstatat(fd, empty_path(), StatAtFlags::EMPTY_PATH)
+    fstatat(dirfd, empty_path(), StatAtFlags::EMPTY_PATH)
 }
 
 #[cfg(test)]
