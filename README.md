@@ -1,52 +1,46 @@
 # linux-stat
 
+![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/shurizzle/linux-stat/unit-tests.yml?branch=master&style=for-the-badge)
+[![Crates.io](https://img.shields.io/crates/v/linux-stat?style=for-the-badge)](https://crates.io/crates/linux-stat)
+[![docs.rs](https://img.shields.io/docsrs/linux-stat?style=for-the-badge)](https://docs.rs/linux-stat)
+![Crates.io](https://img.shields.io/crates/l/linux-stat?style=for-the-badge)
 
-### Tier 1
+A pure Rust library that implements `stat` functions on linux with only syscalls.
 
-| Triple                              | State |
-| :---------------------------------- | :---: |
-| aarch64-unknown-linux-gnu           |   ?   |
-| i686-unknown-linux-gnu              |   ?   |
-| x86_64-unknown-linux-gnu            |   ?   |
+#### tl;dr
 
-### Tier 2 with tools
+It tries to use `statx` syscall and fallback to `fstatat`.
 
-| Triple                              | State |
-| :---------------------------------- | :---: |
-| aarch64-unknown-linux-musl          |   ?   |
-| arm-unknown-linux-gnueabi           |   ?   |
-| arm-unknown-linux-gnueabihf         |   ?   |
-| armv7-unknown-linux-gnueabihf       |   ?   |
-| mips-unknown-linux-gnu              |   ?   |
-| mips64-unknown-linux-gnuabi64       |   ?   |
-| mips64el-unknown-linux-gnuabi64     |   ?   |
-| mipsel-unknown-linux-gnu            |   ?   |
-| powerpc-unknown-linux-gnu           |   ?   |
-| powerpc64-unknown-linux-gnu         |   ?   |
-| powerpc64le-unknown-linux-gnu       |   ?   |
-| riscv64gc-unknown-linux-gnu         |   ?   |
-| s390x-unknown-linux-gnu             |   ?   |
-| x86_64-unknown-linux-musl           |   ?   |
+### Feature flags
 
-### Tier 2
+- `std`: enable std support.
+- `linux_4_11`: assume that kernel is at least 4.11.0 so `statx` is used.
 
-| Triple                              | State |
-| :---------------------------------- | :---: |
-| arm-unknown-linux-musleabi          |   ?   |
-| arm-unknown-linux-musleabihf        |   ?   |
-| armv5te-unknown-linux-gnueabi       |   ?   |
-| armv5te-unknown-linux-musleabi      |   ?   |
-| armv7-linux-androideabi             |   ?   |
-| armv7-unknown-linux-gnueabi         |   ?   |
-| armv7-unknown-linux-musleabi        |   ?   |
-| armv7-unknown-linux-musleabihf      |   ?   |
-| i586-unknown-linux-gnu              |   ?   |
-| i586-unknown-linux-musl             |   ?   |
-| i686-unknown-linux-musl             |   ?   |
-| mips-unknown-linux-musl             |   ?   |
-| mips64-unknown-linux-muslabi64      |   ?   |
-| mips64el-unknown-linux-muslabi64    |   ?   |
-| mipsel-unknown-linux-musl           |   ?   |
-| sparc64-unknown-linux-gnu           |   ?   |
-| thumbv7neon-unknown-linux-gnueabihf |   ?   |
-| x86_64-unknown-linux-gnux32         |   ?   |
+### `#![no_std]`
+
+Enable `#![no_std]` support by disabling the default `std` feature:
+
+```toml
+[dependencies]
+linux-stat = { version = "*", default-features = false }
+```
+
+### Platforms
+
+- aarch64
+- arm
+- mips
+- mips64
+- mips64el
+- mipsel
+- powerpc
+- powerpc64
+- powerpc64el
+- riscv64
+- s390x
+- x86
+- x86_64
+
+### MSRV
+
+1.46.0
