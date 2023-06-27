@@ -72,7 +72,7 @@ impl stat {
     /// block or character device type
     #[inline]
     pub const fn rdev(&self) -> Dev {
-        Dev::B64(self.st_dev)
+        Dev::B64(self.st_rdev)
     }
 
     /// Returns the size of the file (if it is a regular file or a symbolic

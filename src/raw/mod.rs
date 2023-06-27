@@ -743,7 +743,7 @@ mod tests {
         assert!(statx.is_ok());
         let statx = statx.unwrap();
 
-        assert_eq!(statx.dev(), crate::Dev::from(c_stat.st_dev));
+        assert_eq!(statx.dev(), c_stat.st_dev);
         assert_eq!(statx.inode(), c_stat.st_ino as u64);
         assert_eq!(statx.nlink(), c_stat.st_nlink as u32);
         assert_eq!(
