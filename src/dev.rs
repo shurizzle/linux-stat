@@ -2,31 +2,37 @@
 
 use core::fmt;
 
+/// Device ID representation backed by an u32.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct Dev32(u32);
 
 impl Dev32 {
+    /// Crate a new [Dev32] from an u32.
     #[inline]
     pub const fn new(value: u32) -> Self {
         Self(value)
     }
 
+    /// Returns device major.
     #[inline]
     pub const fn major(&self) -> u32 {
         (self.0 >> 8) & 0xff
     }
 
+    /// Returns device minor.
     #[inline]
     pub const fn minor(&self) -> u32 {
         (self.0 >> 19) | (self.0 & 0xff)
     }
 
+    /// Returns device id as a u32.
     #[inline]
     pub const fn as_u32(&self) -> u32 {
         self.0
     }
 
+    /// Returns device id as a u64.
     #[inline]
     pub const fn as_u64(&self) -> u64 {
         DevSplit::new(self.major(), self.minor()).as_u64()
@@ -407,25 +413,30 @@ impl Ord for Dev32 {
     }
 }
 
+/// Device ID representation backed by two u32 (major, minor).
 #[derive(Copy, Clone)]
 pub struct DevSplit(u32, u32);
 
 impl DevSplit {
+    /// Crate a new [DevSplit] from two u32 (major, minor).
     #[inline]
     pub const fn new(major: u32, minor: u32) -> Self {
         Self(major, minor)
     }
 
+    /// Returns device major.
     #[inline]
     pub const fn major(&self) -> u32 {
         self.0
     }
 
+    /// Returns device minor.
     #[inline]
     pub const fn minor(&self) -> u32 {
         self.1
     }
 
+    /// Returns device id as a u64.
     #[inline]
     pub const fn as_u64(&self) -> u64 {
         (((self.1 as u64) & 0xfffff000) << 32)
@@ -831,26 +842,31 @@ impl Ord for DevSplit {
     }
 }
 
+/// Device ID representation backed by an u64.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct Dev64(u64);
 
 impl Dev64 {
+    /// Crate a new [Dev64] from an u64.
     #[inline]
     pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
+    /// Returns device major.
     #[inline]
     pub const fn major(&self) -> u32 {
         (((self.0 >> 32) & 0xfffff000) | ((self.0 >> 8) & 0xfff)) as u32
     }
 
+    /// Returns device minor.
     #[inline]
     pub const fn minor(&self) -> u32 {
         (((self.0 >> 12) & 0xffffff00) | (self.0 & 0xff)) as u32
     }
 
+    /// Returns device id as a u64.
     #[inline]
     pub const fn as_u64(&self) -> u64 {
         self.0
@@ -1231,6 +1247,7 @@ impl Ord for Dev64 {
     }
 }
 
+/// Unified Device ID representation.
 #[derive(Copy, Clone)]
 pub enum Dev {
     B32(Dev32),
@@ -1239,6 +1256,7 @@ pub enum Dev {
 }
 
 impl Dev {
+    /// Returns device major.
     #[inline]
     pub const fn major(&self) -> u32 {
         match self {
@@ -1248,6 +1266,7 @@ impl Dev {
         }
     }
 
+    /// Returns device minor.
     #[inline]
     pub const fn minor(&self) -> u32 {
         match self {
@@ -1257,6 +1276,7 @@ impl Dev {
         }
     }
 
+    /// Returns device id as a u64.
     #[inline]
     pub const fn as_u64(&self) -> u64 {
         match self {
@@ -1266,16 +1286,19 @@ impl Dev {
         }
     }
 
+    /// Create a [Dev] from a u32.
     #[inline]
     pub const fn from_u32(value: u32) -> Self {
         Self::B32(Dev32::new(value))
     }
 
+    /// Create a [Dev] from a u64.
     #[inline]
     pub const fn from_u64(value: u64) -> Self {
         Self::B64(Dev64::new(value))
     }
 
+    /// Create a [Dev] from two u32 (major, minor).
     #[inline]
     pub const fn from_split(major: u32, minor: u32) -> Self {
         Self::Split(DevSplit::new(major, minor))
