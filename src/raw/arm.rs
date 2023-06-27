@@ -2,7 +2,7 @@
 
 use linux_syscalls::Sysno;
 
-use crate::Timestamp;
+use crate::{Dev, Dev32, Dev64, Timestamp};
 
 pub const SYS_FSTATAT: Sysno = Sysno::fstatat64;
 
@@ -10,14 +10,14 @@ pub const SYS_FSTATAT: Sysno = Sysno::fstatat64;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct stat {
-    st_dev: u32,
+    st_dev: Dev32,
     __pad0: [u32; 2],
     st_ino: u32,
     st_mode: u32,
     st_nlink: u32,
     st_uid: u32,
     st_gid: u32,
-    st_rdev: u64,
+    st_rdev: Dev64,
     __pad1: u32,
     st_size: i64,
     st_blksize: i32,
@@ -33,8 +33,8 @@ pub struct stat {
 impl stat {
     /// Returns the device on which this file (inode) resides.
     #[inline]
-    pub const fn dev(&self) -> u64 {
-        self.st_dev as u64
+    pub const fn dev(&self) -> Dev {
+        Dev::B32(self.st_dev)
     }
 
     /// Returns the inode number of the file.
@@ -69,8 +69,8 @@ impl stat {
     /// Returns the device that this file (inode) represents if the file is of
     /// block or character device type
     #[inline]
-    pub const fn rdev(&self) -> u64 {
-        self.st_rdev
+    pub const fn rdev(&self) -> Dev {
+        Dev::B64(self.st_rdev)
     }
 
     /// Returns the size of the file (if it is a regular file or a symbolic

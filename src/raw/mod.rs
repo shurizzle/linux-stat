@@ -2,7 +2,7 @@
 
 use core::{fmt, mem::MaybeUninit};
 
-use crate::{CStr, FileType, Mode, RawFd, StatAtFlags, Timestamp};
+use crate::{CStr, Dev, DevSplit, FileType, Mode, RawFd, StatAtFlags, Timestamp};
 
 #[cfg_attr(
     all(not(feature = "linux_4_11"), target_arch = "aarch64"),
@@ -185,14 +185,6 @@ pub struct Statx {
     stx_dio_mem_align: u32,
     stx_dio_offset_align: u32,
     spare: [u64; 14],
-}
-
-#[inline(always)]
-const fn makedev(minor: u32, major: u32) -> u64 {
-    (((minor as u64) & 0xfffff000) << 32)
-        | ((minor as u64) & 0x00000fff) << 8
-        | (((major as u64) & 0xffffff00) << 12)
-        | (major as u64) & 0xff
 }
 
 #[inline(always)]
@@ -389,8 +381,8 @@ impl Statx {
     /// Returns the device that this file (inode) represents if the file is of
     /// block or character device type
     #[inline]
-    pub const fn rdev(&self) -> u64 {
-        makedev(self.rdev_major(), self.rdev_minor())
+    pub const fn rdev(&self) -> Dev {
+        Dev::Split(DevSplit::new(self.rdev_major(), self.rdev_minor()))
     }
 
     /// Returns the major device on which this file (inode) resides.
@@ -407,8 +399,8 @@ impl Statx {
 
     /// Returns the device on which this file (inode) resides.
     #[inline]
-    pub const fn dev(&self) -> u64 {
-        makedev(self.dev_major(), self.dev_minor())
+    pub const fn dev(&self) -> Dev {
+        Dev::Split(DevSplit::new(self.dev_major(), self.dev_minor()))
     }
 
     /// The mount ID of the mount containing the file.  This is the same
@@ -490,18 +482,6 @@ impl Statx {
 }
 
 #[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-#[inline(always)]
-const fn minor(dev: u64) -> u32 {
-    (((dev >> 32) & 0xfffff000) | ((dev >> 8) & 0xfff)) as u32
-}
-
-#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
-#[inline(always)]
-const fn major(dev: u64) -> u32 {
-    (((dev >> 12) & 0xffffff00) | (dev & 0xff)) as u32
-}
-
-#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
 impl stat {
     /// Returns the file mode.
     #[inline]
@@ -571,27 +551,27 @@ impl stat {
     /// Returns the minor device on which this file (inode) resides.
     #[inline]
     pub const fn dev_minor(&self) -> u32 {
-        minor(self.dev())
+        self.dev().minor()
     }
 
     /// Returns the major device on which this file (inode) resides.
     #[inline]
     pub const fn dev_major(&self) -> u32 {
-        major(self.dev())
+        self.dev().major()
     }
 
     /// Returns the minor device that this file (inode) represents if the file
     /// is of block or character device type
     #[inline]
     pub const fn rdev_minor(&self) -> u32 {
-        minor(self.rdev())
+        self.rdev().minor()
     }
 
     /// Returns the major device that this file (inode) represents if the file
     /// is of block or character device type
     #[inline]
     pub const fn rdev_major(&self) -> u32 {
-        major(self.rdev())
+        self.rdev().major()
     }
 
     pub(crate) fn debug(&self, f: &mut fmt::Formatter<'_>, name: &str) -> fmt::Result {
@@ -721,7 +701,7 @@ mod tests {
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
-        assert_eq!(stat.dev(), c_stat.st_dev as u64);
+        assert_eq!(stat.dev(), c_stat.st_dev);
         assert_eq!(stat.inode(), c_stat.st_ino as u64);
         assert_eq!(stat.nlink(), c_stat.st_nlink as u32);
         assert_eq!(
@@ -730,7 +710,7 @@ mod tests {
         );
         assert_eq!(stat.uid(), c_stat.st_uid as u32);
         assert_eq!(stat.gid(), c_stat.st_gid as u32);
-        assert_eq!(stat.rdev(), c_stat.st_rdev as u64);
+        assert_eq!(stat.rdev(), c_stat.st_rdev);
         assert_eq!(stat.size(), c_stat.st_size as i64);
         assert_eq!(stat.block_size(), c_stat.st_blksize as i32);
         assert_eq!(stat.blocks(), c_stat.st_blocks as i64);
@@ -763,7 +743,7 @@ mod tests {
         assert!(statx.is_ok());
         let statx = statx.unwrap();
 
-        assert_eq!(statx.dev(), c_stat.st_dev as u64);
+        assert_eq!(statx.dev(), crate::Dev::from(c_stat.st_dev));
         assert_eq!(statx.inode(), c_stat.st_ino as u64);
         assert_eq!(statx.nlink(), c_stat.st_nlink as u32);
         assert_eq!(
@@ -772,7 +752,7 @@ mod tests {
         );
         assert_eq!(statx.uid(), c_stat.st_uid as u32);
         assert_eq!(statx.gid(), c_stat.st_gid as u32);
-        assert_eq!(statx.rdev(), c_stat.st_rdev as u64);
+        assert_eq!(statx.rdev(), c_stat.st_rdev);
         assert_eq!(statx.size(), c_stat.st_size as i64);
         assert_eq!(statx.block_size(), c_stat.st_blksize as i32);
         assert_eq!(statx.blocks(), c_stat.st_blocks as i64);

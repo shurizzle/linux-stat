@@ -23,11 +23,14 @@ pub use CStr as Path;
 
 pub use linux_syscalls::Errno;
 
+mod dev;
 pub mod raw;
 
 use core::fmt;
 
 use linux_syscalls::bitflags;
+
+pub use self::dev::*;
 
 /// Special file descriptor that represent the current directory.
 pub const CURRENT_DIRECTORY: RawFd = -100;
@@ -411,7 +414,7 @@ impl Stat {
     /// Returns the device that this file (inode) represents if the file is of
     /// block or character device type
     #[inline]
-    pub const fn rdev(&self) -> u64 {
+    pub const fn rdev(&self) -> Dev {
         with_stat!(self, |s| s.rdev())
     }
 
@@ -429,7 +432,7 @@ impl Stat {
 
     /// Returns the device on which this file (inode) resides.
     #[inline]
-    pub const fn dev(&self) -> u64 {
+    pub const fn dev(&self) -> Dev {
         with_stat!(self, |s| s.dev())
     }
 }
@@ -679,7 +682,7 @@ pub(crate) mod tests {
         assert!(stat.is_ok());
         let stat = stat.unwrap();
 
-        assert_eq!(stat.dev(), c_stat.st_dev as u64);
+        assert_eq!(stat.dev(), c_stat.st_dev);
         assert_eq!(stat.inode(), c_stat.st_ino as u64);
         assert_eq!(stat.nlink(), c_stat.st_nlink as u32);
         assert_eq!(
@@ -688,7 +691,7 @@ pub(crate) mod tests {
         );
         assert_eq!(stat.uid(), c_stat.st_uid as u32);
         assert_eq!(stat.gid(), c_stat.st_gid as u32);
-        assert_eq!(stat.rdev(), c_stat.st_rdev as u64);
+        assert_eq!(stat.rdev(), c_stat.st_rdev);
         assert_eq!(stat.size(), c_stat.st_size as i64);
         assert_eq!(stat.block_size(), c_stat.st_blksize as i32);
         assert_eq!(stat.blocks(), c_stat.st_blocks as i64);
