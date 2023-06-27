@@ -521,16 +521,29 @@ pub unsafe fn fstatat<P: AsRef<Path>>(
 ) -> Result<Stat, Errno> {
     let path = path.as_ref();
 
+    run_with_cstr(path, |path| fstatat_cstr(dirfd, path, flags))
+}
+
+/// If not feature `linux_4_11` try to call [crate::raw::statx] and fallback
+/// to [crate::raw::fstatat] if not available.
+/// Accept `path` as a [CStr].
+///
+/// # Safety
+///
+/// This function is marked as unsafe because directory file descriptor
+/// (`dirfd`) cannot be checked.
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+pub unsafe fn fstatat_cstr(dirfd: RawFd, path: &CStr, flags: StatAtFlags) -> Result<Stat, Errno> {
     use core::sync::atomic::Ordering;
 
     match HAS_STATX.load(Ordering::Relaxed) {
-        0 => crate::raw::fstatat(dirfd, path, flags).map(Stat::Stat64),
-        1 => crate::raw::statx(dirfd, path, flags, crate::raw::StatXMask::BASIC_STATS)
+        0 => crate::raw::fstatat_cstr(dirfd, path, flags).map(Stat::Stat64),
+        1 => crate::raw::statx_cstr(dirfd, path, flags, crate::raw::StatXMask::BASIC_STATS)
             .map(Stat::Statx),
-        _ => match crate::raw::statx(dirfd, path, flags, crate::raw::StatXMask::BASIC_STATS) {
+        _ => match crate::raw::statx_cstr(dirfd, path, flags, crate::raw::StatXMask::BASIC_STATS) {
             Err(Errno::ENOSYS) => {
                 HAS_STATX.store(0, Ordering::Relaxed);
-                crate::raw::fstatat(dirfd, path, flags).map(Stat::Stat64)
+                crate::raw::fstatat_cstr(dirfd, path, flags).map(Stat::Stat64)
             }
             other => {
                 HAS_STATX.store(1, Ordering::Relaxed);
@@ -554,21 +567,49 @@ pub unsafe fn fstatat<P: AsRef<Path>>(
     path: P,
     flags: StatAtFlags,
 ) -> Result<Stat, Errno> {
-    raw::statx(dirfd, path, flags, crate::raw::StatXMask::empty())
+    run_with_cstr(path, |path| fstatat_cstr(dirfd, path, flags))
+}
+
+/// If not feature `linux_4_11` try to call [crate::raw::statx] and fallback
+/// to [crate::raw::fstatat] if not available.
+/// Accept `path` as a [CStr].
+///
+/// # Safety
+///
+/// This function is marked as unsafe because directory file descriptor
+/// (`dirfd`) cannot be checked.
+#[cfg(any(feature = "linux_4_11", target_arch = "loongarch64"))]
+#[inline]
+pub unsafe fn fstatat_cstr(dirfd: RawFd, path: &CStr, flags: StatAtFlags) -> Result<Stat, Errno> {
+    raw::statx_cstr(dirfd, path, flags, crate::raw::StatXMask::empty())
 }
 
 /// Call [crate::fstatat] for `path` in the current directory
 /// following symlinks.
 #[inline]
 pub fn stat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
-    unsafe { fstatat(CURRENT_DIRECTORY, path, StatAtFlags::empty()) }
+    run_with_cstr(path, stat_cstr)
+}
+
+/// Call [crate::fstatat] for `path` in the current directory
+/// following symlinks. Accept `path` as as [CStr].
+#[inline]
+pub fn stat_cstr(path: &CStr) -> Result<Stat, Errno> {
+    unsafe { fstatat_cstr(CURRENT_DIRECTORY, path, StatAtFlags::empty()) }
 }
 
 /// Call [crate::fstatat] for `path` in the current directory
 /// not following symlinks.
 #[inline]
 pub fn lstat<P: AsRef<Path>>(path: P) -> Result<Stat, Errno> {
-    unsafe { fstatat(CURRENT_DIRECTORY, path, StatAtFlags::SYMLINK_NOFOLLOW) }
+    run_with_cstr(path, lstat_cstr)
+}
+
+/// Call [crate::fstatat] for `path` in the current directory
+/// not following symlinks. Accept `path` as a [CStr].
+#[inline]
+pub fn lstat_cstr(path: &CStr) -> Result<Stat, Errno> {
+    unsafe { fstatat_cstr(CURRENT_DIRECTORY, path, StatAtFlags::SYMLINK_NOFOLLOW) }
 }
 
 /// Call [crate::fstatat] on the `dirfd` directory file descriptor

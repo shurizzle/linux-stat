@@ -2,7 +2,7 @@
 
 use core::{fmt, mem::MaybeUninit};
 
-use crate::{FileType, Mode, RawFd, StatAtFlags, Timestamp};
+use crate::{CStr, FileType, Mode, RawFd, StatAtFlags, Timestamp};
 
 #[cfg_attr(
     all(not(feature = "linux_4_11"), target_arch = "aarch64"),
@@ -633,17 +633,27 @@ pub unsafe fn fstatat<P: AsRef<crate::Path>>(
     path: P,
     flags: StatAtFlags,
 ) -> Result<stat, Errno> {
-    crate::run_with_cstr(path, |path| {
-        let mut buf = stat::uninit();
-        syscall!(
-            stat_imp::SYS_FSTATAT,
-            dirfd,
-            path.as_ptr(),
-            buf.as_mut_ptr(),
-            flags.bits()
-        )?;
-        Ok(buf.assume_init())
-    })
+    crate::run_with_cstr(path, |path| fstatat_cstr(dirfd, path, flags))
+}
+
+/// Invoke `fstatat` system call with `path` as a [crate::CStr].
+///
+/// # Safety
+///
+/// This functions is inherently unsafe because it just wrap the system call
+/// and directory file descriptor (`dirfd`) cannot be checked.
+#[cfg(all(not(feature = "linux_4_11"), not(target_arch = "loongarch64")))]
+#[inline]
+pub unsafe fn fstatat_cstr(dirfd: RawFd, path: &CStr, flags: StatAtFlags) -> Result<stat, Errno> {
+    let mut buf = stat::uninit();
+    syscall!(
+        stat_imp::SYS_FSTATAT,
+        dirfd,
+        path.as_ptr(),
+        buf.as_mut_ptr(),
+        flags.bits()
+    )?;
+    Ok(buf.assume_init())
 }
 
 /// Invoke `statx` system call.
@@ -659,18 +669,32 @@ pub unsafe fn statx<P: AsRef<crate::Path>>(
     flags: StatAtFlags,
     mask: StatXMask,
 ) -> Result<Statx, Errno> {
-    crate::run_with_cstr(path, |path| {
-        let mut buf = Statx::uninit();
-        syscall!(
-            Sysno::statx,
-            dirfd,
-            path.as_ptr(),
-            flags.bits(),
-            mask.bits(),
-            buf.as_mut_ptr(),
-        )?;
-        Ok(buf.assume_init())
-    })
+    crate::run_with_cstr(path, |path| statx_cstr(dirfd, path, flags, mask))
+}
+
+/// Invoke `statx` system call with `path` as a [crate::CStr].
+///
+/// # Safety
+///
+/// This functions is inherently unsafe because it just wrap the system call
+/// and directory file descriptor (`dirfd`) cannot be checked.
+#[inline]
+pub unsafe fn statx_cstr(
+    dirfd: RawFd,
+    path: &CStr,
+    flags: StatAtFlags,
+    mask: StatXMask,
+) -> Result<Statx, Errno> {
+    let mut buf = Statx::uninit();
+    syscall!(
+        Sysno::statx,
+        dirfd,
+        path.as_ptr(),
+        flags.bits(),
+        mask.bits(),
+        buf.as_mut_ptr(),
+    )?;
+    Ok(buf.assume_init())
 }
 
 #[cfg(test)]
