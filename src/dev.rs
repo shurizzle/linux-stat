@@ -453,10 +453,10 @@ impl DevSplit {
     /// Returns device id as a u64.
     #[inline]
     pub const fn as_u64(&self) -> u64 {
-        (((self.1 as u64) & 0xfffff000) << 32)
-            | ((self.1 as u64) & 0x00000fff) << 8
-            | (((self.0 as u64) & 0xffffff00) << 12)
-            | (self.0 as u64) & 0xff
+        (((self.0 as u64) & 0xfffff000) << 32)
+            | ((self.0 as u64) & 0x00000fff) << 8
+            | (((self.1 as u64) & 0xffffff00) << 12)
+            | (self.1 as u64) & 0xff
     }
 }
 
