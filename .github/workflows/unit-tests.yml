@@ -131,6 +131,7 @@ jobs:
       with:
         toolchain: stable
         default: true
+      if: ${{ matrix.target != 'loongarch64-unknown-linux-gnu' }}
     - name: Install 1.46.0 toolchain
       uses: actions-rs/toolchain@v1
       with:
@@ -141,7 +142,8 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
-        default: false
+        default: ${{ matrix.target == 'loongarch64-unknown-linux-gnu' }}
+      if: ${{ matrix.target == 'loongarch64-unknown-linux-gnu' }}
 
     - name: Install UBI
       shell: bash
@@ -161,11 +163,12 @@ jobs:
 
     - name: Install targets
       run: |
-        if [ "${{ matrix.target }}" != loongarch64-unknown-linux-gnu ]; then
+        if [ "${{ matrix.target }}" = loongarch64-unknown-linux-gnu ]; then
+          rustup target add ${{ matrix.target }} --toolchain nightly
+        else
           rustup target add ${{ matrix.target }} --toolchain stable
           rustup target add ${{ matrix.target }} --toolchain 1.46.0
         fi
-        rustup target add ${{ matrix.target }} --toolchain nightly
 
     - name: Test ${{ matrix.target }} 1.46.0
       run: |
@@ -181,3 +184,4 @@ jobs:
       run: |
         rm -rf Cargo.lock target
         cross +nightly test --target ${{ matrix.target }}
+      if: ${{ matrix.target == 'loongarch64-unknown-linux-gnu' }}

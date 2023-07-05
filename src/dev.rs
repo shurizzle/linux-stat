@@ -413,6 +413,20 @@ impl Ord for Dev32 {
     }
 }
 
+impl From<Dev32> for u32 {
+    #[inline]
+    fn from(value: Dev32) -> Self {
+        value.as_u32()
+    }
+}
+
+impl From<Dev32> for u64 {
+    #[inline]
+    fn from(value: Dev32) -> Self {
+        value.as_u64()
+    }
+}
+
 /// Device ID representation backed by two u32 (major, minor).
 #[derive(Copy, Clone)]
 pub struct DevSplit(u32, u32);
@@ -842,6 +856,13 @@ impl Ord for DevSplit {
     }
 }
 
+impl From<DevSplit> for u64 {
+    #[inline]
+    fn from(value: DevSplit) -> Self {
+        value.as_u64()
+    }
+}
+
 /// Device ID representation backed by an u64.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
@@ -1244,6 +1265,13 @@ impl Ord for Dev64 {
     #[inline]
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.0.cmp(&other.0)
+    }
+}
+
+impl From<Dev64> for u64 {
+    #[inline]
+    fn from(value: Dev64) -> Self {
+        value.as_u64()
     }
 }
 
@@ -1772,5 +1800,12 @@ impl From<(u32, u32)> for Dev {
     #[inline]
     fn from(value: (u32, u32)) -> Self {
         Self::from_split(value.0, value.1)
+    }
+}
+
+impl From<Dev> for u64 {
+    #[inline]
+    fn from(value: Dev) -> Self {
+        value.as_u64()
     }
 }
