@@ -33,7 +33,7 @@ use linux_syscalls::bitflags;
 pub use self::dev::*;
 
 /// Special file descriptor that represent the current directory.
-pub const CURRENT_DIRECTORY: RawFd = -100;
+pub const CURRENT_DIRECTORY: RawFd = linux_raw_sys::general::AT_FDCWD;
 
 bitflags! {
     /// Flags for `fstatat()`.
@@ -45,15 +45,15 @@ bitflags! {
         /// just a directory, and the behavior of fstatat() is similar to
         /// that of fstat().  If dirfd is AT_FDCWD, the call operates on the
         /// current working directory.
-        EMPTY_PATH = 0x1000,
+        EMPTY_PATH = linux_raw_sys::general::AT_EMPTY_PATH,
         /// Don't automount the terminal ("basename") component of pathname.
         /// Since Linux 3.1 this flag is ignored.  Since Linux 4.11 this
         /// flag is implied.
-        NO_AUTOMOUNT = 0x800,
+        NO_AUTOMOUNT = linux_raw_sys::general::AT_NO_AUTOMOUNT,
         /// If pathname is a symbolic link, do not dereference it: instead
         /// return information about the link itself, like lstat().  (By
         /// default, fstatat() dereferences symbolic links, like stat().)
-        SYMLINK_NOFOLLOW = 0x100,
+        SYMLINK_NOFOLLOW = linux_raw_sys::general::AT_SYMLINK_NOFOLLOW,
     }
 }
 
@@ -97,19 +97,25 @@ impl Mode {
     /// Returns true if suid is set on file.
     #[inline]
     pub const fn suid(&self) -> bool {
-        self.0 & 0o4000 == 0o4000
+        const S_ISUID: u16 = linux_raw_sys::general::S_ISUID as u16;
+
+        self.0 & S_ISUID == S_ISUID
     }
 
     /// Returns true if sgid is set on file.
     #[inline]
     pub const fn sgid(&self) -> bool {
-        self.0 & 0o2000 == 0o2000
+        const S_ISGID: u16 = linux_raw_sys::general::S_ISGID as u16;
+
+        self.0 & S_ISGID == S_ISGID
     }
 
     /// Returns true if svtx is set on file.
     #[inline]
     pub const fn svtx(&self) -> bool {
-        self.0 & 0o1000 == 0o1000
+        const S_ISVTX: u16 = linux_raw_sys::general::S_ISVTX as u16;
+
+        self.0 & S_ISVTX == S_ISVTX
     }
 
     /// Returns [Mode] from a u16.
@@ -226,16 +232,20 @@ pub enum FileType {
 
 impl FileType {
     pub fn as_u16(&self) -> u16 {
-        match *self {
-            FileType::Socket => 0o140000,
-            FileType::Link => 0o120000,
-            FileType::Regular => 0o100000,
-            FileType::Block => 0o060000,
-            FileType::Directory => 0o040000,
-            FileType::Character => 0o020000,
-            FileType::Fifo => 0o010000,
-            FileType::Unknown => 0o000000,
-        }
+        use linux_raw_sys::general::{
+            S_IFBLK, S_IFCHR, S_IFDIR, S_IFIFO, S_IFLNK, S_IFREG, S_IFSOCK,
+        };
+
+        (match *self {
+            FileType::Socket => S_IFSOCK,
+            FileType::Link => S_IFLNK,
+            FileType::Regular => S_IFREG,
+            FileType::Block => S_IFBLK,
+            FileType::Directory => S_IFDIR,
+            FileType::Character => S_IFCHR,
+            FileType::Fifo => S_IFIFO,
+            FileType::Unknown => 0,
+        }) as u16
     }
 }
 

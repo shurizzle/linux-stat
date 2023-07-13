@@ -2,6 +2,10 @@
 
 use core::{fmt, mem::MaybeUninit};
 
+use linux_raw_sys::general::{
+    S_IFBLK, S_IFCHR, S_IFDIR, S_IFIFO, S_IFLNK, S_IFMT, S_IFREG, S_IFSOCK,
+};
+
 use crate::{CStr, Dev, DevSplit, FileType, Mode, RawFd, StatAtFlags, Timestamp};
 
 #[cfg_attr(
@@ -50,38 +54,38 @@ bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum StatXMask: u32 {
         /// Want stx_mode & S_IFMT
-        TYPE = 0x0001,
+        TYPE = linux_raw_sys::general::STATX_TYPE,
         /// Want stx_mode & ~S_IFMT
-        MODE = 0x0002,
+        MODE = linux_raw_sys::general::STATX_MODE,
         /// Want stx_nlink
-        NLINK = 0x0004,
+        NLINK = linux_raw_sys::general::STATX_NLINK,
         /// Want stx_uid
-        UID = 0x0008,
+        UID = linux_raw_sys::general::STATX_UID,
         /// Want stx_gid
-        GID = 0x0010,
+        GID = linux_raw_sys::general::STATX_GID,
         /// Want stx_atime
-        ATIME = 0x0020,
+        ATIME = linux_raw_sys::general::STATX_ATIME,
         /// Want stx_mtime
-        MTIME = 0x0040,
+        MTIME = linux_raw_sys::general::STATX_MTIME,
         /// Want stx_ctime
-        CTIME = 0x0080,
+        CTIME = linux_raw_sys::general::STATX_CTIME,
         /// Want stx_ino
-        INO = 0x0100,
+        INO = linux_raw_sys::general::STATX_INO,
         /// Want stx_size
-        SIZE = 0x0200,
+        SIZE = linux_raw_sys::general::STATX_SIZE,
         /// Want stx_blocks
-        BLOCKS = 0x0400,
+        BLOCKS = linux_raw_sys::general::STATX_BLOCKS,
         /// [All of the above]
-        BASIC_STATS = 0x07ff,
+        BASIC_STATS = linux_raw_sys::general::STATX_BASIC_STATS,
         /// Want stx_btime
-        BTIME = 0x0800,
+        BTIME = linux_raw_sys::general::STATX_BTIME,
         /// The same as STATX_BASIC_STATS | STATX_BTIME.
-        ALL = 0x0fff,
+        ALL = linux_raw_sys::general::STATX_ALL,
         /// Want stx_mnt_id (since Linux 5.8)
-        MNT_ID = 0x1000,
+        MNT_ID = linux_raw_sys::general::STATX_MNT_ID,
         /// Want stx_dio_mem_align and stx_dio_offset_align
         /// (since Linux 6.1; support varies by filesystem)
-        DIOALIGN = 0x2000,
+        DIOALIGN = linux_raw_sys::general::STATX_DIOALIGN,
     }
 }
 
@@ -94,26 +98,26 @@ bitflags! {
     pub enum StatXAttr: u64 {
         /// The file is compressed by the filesystem and may take extra
         /// resources to access
-        COMPRESSED = 0x0004,
+        COMPRESSED = linux_raw_sys::general::STATX_ATTR_COMPRESSED as u64,
         /// The file cannot be modified: it cannot be deleted or renamed, no
         /// hard links can be created to this file and no data can be
         /// written to it.  See chattr(1).
-        IMMUTABLE = 0x0010,
+        IMMUTABLE = linux_raw_sys::general::STATX_ATTR_IMMUTABLE as u64,
         /// The file can only be opened in append mode for writing.  Random
         /// access writing is not permitted.  See chattr(1).
-        APPEND = 0x0020,
+        APPEND = linux_raw_sys::general::STATX_ATTR_APPEND as u64,
         /// File is not a candidate for backup when a backup program such as
         /// dump(8) is run.  See chattr(1).
-        NODUMP = 0x0040,
+        NODUMP = linux_raw_sys::general::STATX_ATTR_NODUMP as u64,
         /// A key is required for the file to be encrypted by the
         /// filesystem.
-        ENCRYPTED = 0x0800,
-        AUTOMOUNT = 0x1000,
-        MOUNT_ROOT = 0x2000,
+        ENCRYPTED = linux_raw_sys::general::STATX_ATTR_ENCRYPTED as u64,
+        AUTOMOUNT = linux_raw_sys::general::STATX_ATTR_AUTOMOUNT as u64,
+        MOUNT_ROOT = linux_raw_sys::general::STATX_ATTR_MOUNT_ROOT as u64,
         /// The file has fs-verity enabled.  It cannot be written to, and
         /// all reads from it will be verified against a cryptographic hash
         /// that covers the entire file (e.g., via a Merkle tree).
-        VERITY = 0x100000,
+        VERITY = linux_raw_sys::general::STATX_ATTR_VERITY as u64,
         /// The file is in the DAX (cpu direct access) state.  DAX state
         /// attempts to minimize software cache effects for both I/O and
         /// memory mappings of this file.  It requires a file system which
@@ -136,7 +140,7 @@ bitflags! {
         /// which enables a program to use CPU cache flush instructions to
         /// persist CPU store operations without an explicit fsync(2).  See
         /// mmap(2) for more information
-        DAX = 0x200000,
+        DAX = linux_raw_sys::general::STATX_ATTR_DAX as u64,
     }
 }
 
@@ -189,14 +193,14 @@ pub struct Statx {
 
 #[inline(always)]
 const fn file_type(mode: u16) -> FileType {
-    match mode & 0o170000 {
-        0o140000 => FileType::Socket,
-        0o120000 => FileType::Link,
-        0o100000 => FileType::Regular,
-        0o060000 => FileType::Block,
-        0o040000 => FileType::Directory,
-        0o020000 => FileType::Character,
-        0o010000 => FileType::Fifo,
+    match mode as u32 & S_IFMT {
+        S_IFSOCK => FileType::Socket,
+        S_IFLNK => FileType::Link,
+        S_IFREG => FileType::Regular,
+        S_IFBLK => FileType::Block,
+        S_IFDIR => FileType::Directory,
+        S_IFCHR => FileType::Character,
+        S_IFIFO => FileType::Fifo,
         _ => FileType::Unknown,
     }
 }
@@ -237,7 +241,7 @@ impl Statx {
     /// Returns the file mode.
     #[inline]
     pub const fn mode(&self) -> Mode {
-        Mode(self.stx_mode & !0o170000)
+        Mode(self.stx_mode & !(S_IFMT as u16))
     }
 
     /// Returns the file type.
@@ -248,31 +252,31 @@ impl Statx {
     /// Returns true if file type is socket.
     #[inline]
     pub const fn is_socket(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o140000
+        self.stx_mode as u32 & S_IFMT == S_IFSOCK
     }
 
     /// Returns true if file type is link.
     #[inline]
     pub const fn is_link(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o120000
+        self.stx_mode as u32 & S_IFMT == S_IFLNK
     }
 
     /// Returns true if file type is regular.
     #[inline]
     pub const fn is_regular(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o100000
+        self.stx_mode as u32 & S_IFMT == S_IFREG
     }
 
     /// Returns true if file type is block.
     #[inline]
     pub const fn is_block(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o060000
+        self.stx_mode as u32 & S_IFMT == S_IFBLK
     }
 
     /// Returns true if file type is directory.
     #[inline]
     pub const fn is_directory(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o040000
+        self.stx_mode as u32 & S_IFMT == S_IFDIR
     }
 
     /// Alias for `Self::is_directory()`.
@@ -284,7 +288,7 @@ impl Statx {
     /// Returns true if file type is character.
     #[inline]
     pub const fn is_character(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o020000
+        self.stx_mode as u32 & S_IFMT == S_IFCHR
     }
 
     /// Alias for `Self::is_character()`.
@@ -296,7 +300,7 @@ impl Statx {
     /// Returns true if file type is FIFO.
     #[inline]
     pub const fn is_fifo(&self) -> bool {
-        self.stx_mode & 0o170000 == 0o010000
+        self.stx_mode as u32 & S_IFMT == S_IFIFO
     }
 
     /// Returns the inode number of the file.
@@ -486,7 +490,7 @@ impl stat {
     /// Returns the file mode.
     #[inline]
     pub const fn mode(&self) -> Mode {
-        Mode(self.raw_mode() & !0o170000)
+        Mode(self.raw_mode() & !(S_IFMT as u16))
     }
 
     /// Returns the file type.
@@ -497,31 +501,31 @@ impl stat {
     /// Returns true if file type is socket.
     #[inline]
     pub const fn is_socket(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o140000
+        self.raw_mode() as u32 & S_IFMT == S_IFSOCK
     }
 
     /// Returns true if file type is link.
     #[inline]
     pub const fn is_link(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o120000
+        self.raw_mode() as u32 & S_IFMT == S_IFLNK
     }
 
     /// Returns true if file type is regular.
     #[inline]
     pub const fn is_regular(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o100000
+        self.raw_mode() as u32 & S_IFMT == S_IFREG
     }
 
     /// Returns true if file type is block.
     #[inline]
     pub const fn is_block(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o060000
+        self.raw_mode() as u32 & S_IFMT == S_IFBLK
     }
 
     /// Returns true if file type is directory.
     #[inline]
     pub const fn is_directory(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o040000
+        self.raw_mode() as u32 & S_IFMT == S_IFDIR
     }
 
     /// Alias for `Self::is_directory()`.
@@ -533,7 +537,7 @@ impl stat {
     /// Returns true if file type is character.
     #[inline]
     pub const fn is_character(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o020000
+        self.raw_mode() as u32 & S_IFMT == S_IFCHR
     }
 
     /// Alias for `Self::is_character()`.
@@ -545,7 +549,7 @@ impl stat {
     /// Returns true if file type is FIFO.
     #[inline]
     pub const fn is_fifo(&self) -> bool {
-        self.raw_mode() & 0o170000 == 0o010000
+        self.raw_mode() as u32 & S_IFMT == S_IFIFO
     }
 
     /// Returns the minor device on which this file (inode) resides.
