@@ -132,7 +132,7 @@ jobs:
           - i686-unknown-linux-gnu
           - i686-linux-android
           - x86_64-unknown-linux-gnu
-          - x86_64-linux-anroid
+          - x86_64-linux-android
           - loongarch64-unknown-linux-gnu
 
     steps:
