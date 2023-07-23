@@ -32,7 +32,11 @@ jobs:
         include:
           - target: aarch64-unknown-linux-gnu
             toolchain: stable
+          - target: aarch64-linux-android
+            toolchain: stable
           - target: arm-unknown-linux-gnueabi
+            toolchain: stable
+          - target: arm-linux-androideabi
             toolchain: stable
           - target: mips-unknown-linux-gnu
             toolchain: stable
@@ -54,7 +58,11 @@ jobs:
             toolchain: stable
           - target: i686-unknown-linux-gnu
             toolchain: stable
+          - target: i686-linux-android
+            toolchain: stable
           - target: x86_64-unknown-linux-gnu
+            toolchain: stable
+          - target: x86_64-linux-android
             toolchain: stable
           - target: loongarch64-unknown-linux-gnu
             toolchain: nightly
@@ -109,7 +117,9 @@ jobs:
       matrix:
         target:
           - aarch64-unknown-linux-gnu
+          - aarch64-linux-android
           - arm-unknown-linux-gnueabi
+          - arm-linux-androideabi
           - mips-unknown-linux-gnu
           - mipsel-unknown-linux-gnu
           - mips64-unknown-linux-gnuabi64
@@ -120,7 +130,9 @@ jobs:
           - riscv64gc-unknown-linux-gnu
           - s390x-unknown-linux-gnu
           - i686-unknown-linux-gnu
+          - i686-linux-android
           - x86_64-unknown-linux-gnu
+          - x86_64-linux-anroid
           - loongarch64-unknown-linux-gnu
 
     steps:

@@ -1,4 +1,4 @@
-#![cfg(target_os = "linux")]
+#![cfg(any(target_os = "linux", target_os = "android"))]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
