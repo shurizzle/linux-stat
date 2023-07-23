@@ -148,7 +148,7 @@ impl Eq for Dev32 {}
 impl PartialOrd for Dev32 {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
     }
 
     #[inline]
@@ -567,12 +567,9 @@ impl PartialEq<u64> for DevSplit {
 impl Eq for DevSplit {}
 
 impl PartialOrd for DevSplit {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        match self.major().partial_cmp(&other.major()) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.minor().partial_cmp(&other.minor())
+        Some(self.cmp(other))
     }
 
     fn lt(&self, other: &Self) -> bool {
@@ -1003,7 +1000,7 @@ impl Eq for Dev64 {}
 impl PartialOrd for Dev64 {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
     }
 
     #[inline]
@@ -1458,12 +1455,9 @@ impl PartialEq<u64> for Dev {
 impl Eq for Dev {}
 
 impl PartialOrd for Dev {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        match self {
-            Self::B32(d) => d.partial_cmp(other),
-            Self::Split(d) => d.partial_cmp(other),
-            Self::B64(d) => d.partial_cmp(other),
-        }
+        Some(self.cmp(other))
     }
 
     fn lt(&self, other: &Self) -> bool {
