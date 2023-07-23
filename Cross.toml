@@ -1,2 +1,86 @@
 [target.loongarch64-unknown-linux-gnu]
-image = "shurizzle/toolchain-gnu-musl-cargoenv-loongarch64"
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-loongarch64:latest"
+
+[target.x86_64-unknown-linux-gnu]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86_64:latest"
+[target.x86_64-unknown-linux-musl]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86_64:latest"
+[target.x86_64-linux-android]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86_64:latest"
+
+[target.aarch64-unknown-linux-gnu]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-aarch64:latest"
+[target.aarch64-unknown-linux-musl]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-aarch64:latest"
+[target.aarch64-linux-android]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-aarch64:latest"
+
+[target.i686-unknown-linux-gnu]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86:latest"
+[target.i686-unknown-linux-musl]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86:latest"
+[target.i686-linux-android]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86:latest"
+[target.i586-unknown-linux-gnu]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86:latest"
+[target.i586-unknown-linux-musl]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-x86:latest"
+
+[target.arm-unknown-linux-gnueabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv5te-unknown-linux-gnueabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv7-unknown-linux-gnueabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.arm-unknown-linux-gnueabihf]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv7-unknown-linux-gnueabihf]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.thumbv7neon-unknown-linux-gnueabihf]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.arm-unknown-linux-musleabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv5te-unknown-linux-musleabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv7-unknown-linux-musleabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.arm-unknown-linux-musleabihf]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv7-unknown-linux-musleabihf]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.thumbv7neon-unknown-linux-musleabihf]
+xargo = false
+build-std = true
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.arm-linux-androideabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.armv7-linux-androideabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"
+[target.thumbv7neon-linux-androideabi]
+xargo = false
+image = "shurizzle/toolchain-gnu-musl-cargoenv-arm:latest"

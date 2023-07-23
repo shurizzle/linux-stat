@@ -663,6 +663,11 @@ pub(crate) mod tests {
         }
     }
 
+    #[cfg(target_os = "android")]
+    pub use libc::__errno as errno;
+    #[cfg(target_os = "linux")]
+    pub use libc::__errno_location as errno;
+
     pub fn c_stat() -> Result<libc::stat64, Errno> {
         unsafe {
             let mut buf = core::mem::MaybeUninit::<libc::stat64>::uninit();
@@ -673,7 +678,7 @@ pub(crate) mod tests {
                 0,
             ) == -1
             {
-                return Err(Errno::new(*libc::__errno_location()));
+                return Err(Errno::new(*errno()));
             }
             Ok(buf.assume_init())
         }
